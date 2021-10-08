@@ -207,7 +207,7 @@ void sr_handle_ip_packet(struct sr_instance* sr,
   }
 
   /* ip header construct */
-  sr_ip_hdr_t *ip_hdr =  (sr_ip_hdr_t *)packet + sizeof(sr_ethernet_hdr_t);
+  sr_ip_hdr_t *ip_hdr =  (sr_ip_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t));
 
   /* ip version check - no version provided */
   /* if (ip_hdr->ip_tos != 4) {
@@ -219,7 +219,7 @@ void sr_handle_ip_packet(struct sr_instance* sr,
   uint16_t old_cksum;
   old_cksum = ip_hdr->ip_sum;
   ip_hdr->ip_sum = 0; /* to calculate the checksum, the checksum filed should be zeroed out first */
-  if (old_cksum != cksum(ip_hdr, ip_hdr->ip_len)) {
+  if (old_cksum != cksum(ip_hdr, sizeof(sr_ip_hdr_t))) {
     fprintf(stderr, "Packet discard: Checksum failed");
     return;
   }
@@ -231,6 +231,7 @@ void sr_handle_ip_packet(struct sr_instance* sr,
     unsigned short ip_op = ntohs(ip_hdr->ip_p);
     /* ICMP echo request */
     if (ip_op == ip_protocol_icmp) {
+      printf("ICMP echo request");
       /* icmp minimum length check */
       if (len < sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_hdr_t))
         {
