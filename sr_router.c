@@ -302,6 +302,7 @@ void send_icmp_message(uint8_t icmp_type, uint8_t icmp_code, struct sr_instance 
   new_ip_hdr->ip_sum = 0;
   new_ip_hdr->ip_sum = cksum(new_ip_hdr, sizeof(sr_ip_hdr_t));
   new_ip_hdr->ip_ttl = 64;
+  print_hdr_ip(new_ip_hdr);
 
   /* construct icmp header */
   if (icmp_type == 0 && icmp_code == 0) {
@@ -311,6 +312,7 @@ void send_icmp_message(uint8_t icmp_type, uint8_t icmp_code, struct sr_instance 
     icmp_hdr->icmp_type = icmp_type;
     icmp_hdr->icmp_sum = 0;
     icmp_hdr->icmp_sum = cksum(icmp_hdr, len - sizeof(sr_ethernet_hdr_t) - sizeof(sr_ip_hdr_t));
+    print_hdr_icmp(icmp_hdr);
   } else {
     /* icmp messege (type3) */
     sr_icmp_t3_hdr_t *icmp_t3_hdr = (sr_icmp_t3_hdr_t *) (icmp_pkt + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
@@ -325,7 +327,6 @@ void send_icmp_message(uint8_t icmp_type, uint8_t icmp_code, struct sr_instance 
     icmp_t3_hdr->unused = 0;
   }
   /* send back/forward icmp messege */
-  print_hdr_icmp(icmp_pkt);
   sr_send_packet(sr, icmp_pkt, icmp_pkt_len, inf->name);
   free(icmp_pkt);
 }
