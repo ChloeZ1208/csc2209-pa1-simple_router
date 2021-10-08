@@ -240,7 +240,7 @@ void sr_handle_ip_packet(struct sr_instance* sr,
       sr_icmp_hdr_t *icmp_hdr = (sr_icmp_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
       /* 8 for echo messege */
       print_hdr_icmp(packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
-      if (icmp_hdr->icmp_type == 8) {
+      if (icmp_hdr->icmp_type == (uint8_t) 8) {
         send_icmp_message(0, 0, sr, packet, sr_ip_if, ip_hdr, len);
         printf("ICMP reply message");
       }
@@ -266,18 +266,6 @@ void construct_ether_hdr(sr_ethernet_hdr_t *old_ether_hdr, sr_ethernet_hdr_t *ne
   new_ether_hdr->ether_type = htons(type);
 }
 
-/* helper function: tell whether or not the packet is towards one of the interfaces */
-/* struct sr_if *sr_get_inf(struct sr_instance *sr, uint32_t curr_addr) {
-   struct sr_if *if_list = sr->if_list; /* get interface list */
-/*   while(if_list) {
-     if (if_list->ip == curr_addr) {
-       return if_list;
-     }
-     if_list = if_list->next;
-   }
-   return NULL;
- } */
-
 /* helper function: all ICMP messages sender */
 void send_icmp_message(uint8_t icmp_type, uint8_t icmp_code, struct sr_instance *sr, uint8_t *packet, struct sr_if *inf, sr_ip_hdr_t *ip_hdr, unsigned int len) {
   /* first, classification by type */
@@ -287,7 +275,7 @@ void send_icmp_message(uint8_t icmp_type, uint8_t icmp_code, struct sr_instance 
     /* icmp echo */
     icmp_pkt_len = len;
   } else {
-    icmp_pkt_len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_hdr_t);
+    icmp_pkt_len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t);
   }
   /* allocate memory for icmp packet */
   icmp_pkt = malloc(icmp_pkt_len);
@@ -319,6 +307,7 @@ void send_icmp_message(uint8_t icmp_type, uint8_t icmp_code, struct sr_instance 
   /* construct icmp header */
   if (icmp_type == 0 && icmp_code == 0) {
     /* icmp echo reply (type0) */
+    printf("construct icmp echo reply");
     sr_icmp_hdr_t *icmp_hdr = (sr_icmp_hdr_t *) (icmp_pkt + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
     icmp_hdr->icmp_code = icmp_code;
     icmp_hdr->icmp_type = icmp_type;
@@ -337,6 +326,7 @@ void send_icmp_message(uint8_t icmp_type, uint8_t icmp_code, struct sr_instance 
     icmp_t3_hdr->next_mtu = 0;
     icmp_t3_hdr->unused = 0;
     sr_send_packet(sr, icmp_pkt, icmp_pkt_len, inf->name);
+    free(icmp_pkt);
   }
 
 
