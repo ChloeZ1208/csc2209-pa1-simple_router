@@ -114,7 +114,7 @@ void sr_handle_arp_packet(struct sr_instance* sr,
   }
 
   /* get incoming arp header */
-  sr_arp_hdr_t *arp_hdr =  (sr_arp_hdr_t *)packet + sizeof(sr_ethernet_hdr_t);
+  sr_arp_hdr_t *arp_hdr =  (sr_arp_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t));
   /* get incoming ethernet header */
   sr_ethernet_hdr_t *ether_hdr = (sr_ethernet_hdr_t *)packet;
 
@@ -125,7 +125,7 @@ void sr_handle_arp_packet(struct sr_instance* sr,
   */
   
   /* Get the interface and tell if it's for me */
-  struct sr_if* sr_arp_if = (struct sr_if*) sr_get_inf(sr, arp_hdr->ar_tip);
+  struct sr_if* sr_arp_if = (struct sr_if*) sr_get_interface(sr, interface);
   if (sr_arp_if) {
     unsigned short arp_op = ntohs(arp_hdr->ar_op);
     if (arp_op == arp_op_request) {
@@ -209,11 +209,11 @@ void sr_handle_ip_packet(struct sr_instance* sr,
   /* ip header construct */
   sr_ip_hdr_t *ip_hdr =  (sr_ip_hdr_t *)packet + sizeof(sr_ethernet_hdr_t);
 
-  /* ip version check */
-  if (ip_hdr->ip_tos != 4) {
-    fprintf(stderr, "Packet discard: Invalid IP version");
-    return;
-  }
+  /* ip version check - no version provided */
+  // if (ip_hdr->ip_tos != 4) {
+  //   fprintf(stderr, "Packet discard: Invalid IP version");
+  //   return;
+  // }
 
   /* checksum */
   uint16_t old_cksum = ip_hdr->ip_sum;
@@ -224,7 +224,7 @@ void sr_handle_ip_packet(struct sr_instance* sr,
   }
 
   /* get the interface and tell if it's for me */
-  struct sr_if* sr_ip_if = (struct sr_if*) sr_get_inf(sr, ip_hdr->ip_dst);
+  struct sr_if* sr_ip_if = (struct sr_if*) sr_get_interface(sr, interface);
   if (sr_ip_if) {
     /* if the ip packet is destined towards one of the interfaces*/
     unsigned short ip_op = ntohs(ip_hdr->ip_p);
@@ -265,16 +265,16 @@ void construct_ether_hdr(sr_ethernet_hdr_t *old_ether_hdr, sr_ethernet_hdr_t *ne
 }
 
 /* helper function: tell whether or not the packet is towards one of the interfaces */
-struct sr_if *sr_get_inf(struct sr_instance *sr, uint32_t curr_addr) {
-  struct sr_if *if_list = sr->if_list; /* get interface list */
-  while(if_list) {
-    if (if_list->ip == curr_addr) {
-      return if_list;
-    }
-    if_list = if_list->next;
-  }
-  return NULL;
-}
+// struct sr_if *sr_get_inf(struct sr_instance *sr, uint32_t curr_addr) {
+//   struct sr_if *if_list = sr->if_list; /* get interface list */
+//   while(if_list) {
+//     if (if_list->ip == curr_addr) {
+//       return if_list;
+//     }
+//     if_list = if_list->next;
+//   }
+//   return NULL;
+// }
 
 /* helper function: all ICMP messages sender */
 void send_icmp_message(uint8_t icmp_type, uint8_t icmp_code, struct sr_instance *sr, uint8_t *packet, struct sr_if *inf, sr_ip_hdr_t *ip_hdr, unsigned int len) {
