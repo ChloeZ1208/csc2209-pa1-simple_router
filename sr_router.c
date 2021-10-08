@@ -237,7 +237,7 @@ void sr_handle_ip_packet(struct sr_instance* sr,
             fprintf(stderr, "Packet discard: Fail to meet the minimum length!");
             return;
         }
-      sr_icmp_hdr_t *icmp_hdr = (sr_icmp_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
+      sr_icmp_hdr_t *icmp_hdr = (sr_icmp_hdr_t *)(packet  + sizeof(sr_ip_hdr_t));
       /* 8 for echo messege */
       if (icmp_hdr->icmp_type == 8) {
         send_icmp_message(0, 0, sr, packet, sr_ip_if, ip_hdr, len);
