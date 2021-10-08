@@ -140,13 +140,13 @@ void sr_handle_arp_packet(struct sr_instance* sr,
 
       /* construct arp reply header */
       sr_arp_hdr_t *arp_reply_hdr = (sr_arp_hdr_t *)(arp_reply + sizeof(sr_ethernet_hdr_t));
-      arp_reply_hdr->ar_hrd = arp_hdr->ar_hrd; // format of hardware address
-      arp_reply_hdr->ar_pro = arp_hdr->ar_pro; // format of protocol address
-      arp_reply_hdr->ar_hln = arp_hdr->ar_hln; // length of hardware address
-      arp_reply_hdr->ar_pln = arp_hdr->ar_pln; // length of protocol address
-      arp_reply_hdr->ar_op = htons(arp_op_reply); // arp code
-      arp_reply_hdr->ar_sip = arp_hdr->ar_tip; // sender ip address
-      arp_reply_hdr->ar_tip = sr_arp_if->addr;// target ip address
+      arp_reply_hdr->ar_hrd = arp_hdr->ar_hrd;
+      arp_reply_hdr->ar_pro = arp_hdr->ar_pro; 
+      arp_reply_hdr->ar_hln = arp_hdr->ar_hln; 
+      arp_reply_hdr->ar_pln = arp_hdr->ar_pln; 
+      arp_reply_hdr->ar_op = htons(arp_op_reply);
+      arp_reply_hdr->ar_sip = arp_hdr->ar_tip;
+      arp_reply_hdr->ar_tip = sr_arp_if->addr;
       memcpy(arp_reply_hdr->ar_sha, arp_hdr->ar_tha, ETHER_ADDR_LEN); // sender hardware address
       memcpy(arp_reply_hdr->ar_tha, sr_arp_if->addr, ETHER_ADDR_LEN); // target hardware address
 
@@ -215,9 +215,8 @@ void sr_handle_ip_packet(struct sr_instance* sr,
 
   /* checksum */
   uint16_t old_cksum = ip_hdr->ip_sum;
-  ip_hdr->ip_sum = 0; // to calculate the checksum, the checksum filed should be zeroed out first
-  uint16_t curr_cksum = cksum(ip_hdr, ip_hdr->ip_len);
-  if (old_cksum != curr_cksum) {
+  ip_hdr->ip_sum = 0; /* to calculate the checksum, the checksum filed should be zeroed out first */
+  if (old_cksum != cksum(ip_hdr, ip_hdr->ip_len)) {
     fprintf(stderr, "Packet discard: Checksum failed");
     return;
   }
@@ -258,14 +257,14 @@ void sr_handle_ip_packet(struct sr_instance* sr,
 
 /* helper function: construct ethernet header */
 void construct_ether_hdr(sr_ethernet_hdr_t *old_ether_hdr, sr_ethernet_hdr_t *new_ether_hdr, struct sr_if *inf, enum sr_ethertype type) {
-  memcpy(new_ether_hdr->ether_dhost, old_ether_hdr->ether_shost, ETHER_ADDR_LEN); // destination ethernet address
-  memcpy(new_ether_hdr->ether_shost, inf->addr, ETHER_ADDR_LEN); // source ethernet address
-  new_ether_hdr->ether_type = htons(type); // packet type ip
+  memcpy(new_ether_hdr->ether_dhost, old_ether_hdr->ether_shost, ETHER_ADDR_LEN);
+  memcpy(new_ether_hdr->ether_shost, inf->addr, ETHER_ADDR_LEN);
+  new_ether_hdr->ether_type = htons(type);
 }
 
 /* helper function: tell whether or not the packet is towards one of the interfaces */
 struct sr_if *sr_get_inf(struct sr_instance *sr, uint32_t curr_addr) {
-  struct sr_if *if_list = sr->if_list; // get interface list
+  struct sr_if *if_list = sr->if_list; /* get interface list */
   while(if_list) {
     if (if_list->addr == curr_addr) {
       return if_list;
