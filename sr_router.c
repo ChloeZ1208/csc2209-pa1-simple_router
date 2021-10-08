@@ -294,8 +294,6 @@ void send_icmp_message(uint8_t icmp_type, uint8_t icmp_code, struct sr_instance 
   }
   if (icmp_type == 3) {
     new_ip_hdr->ip_len = sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t);
-  } else {
-    new_ip_hdr->ip_len = sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_hdr_t);
   }
   new_ip_hdr->ip_dst = ip_hdr->ip_src;
   new_ip_hdr->ip_p = ip_protocol_icmp;
