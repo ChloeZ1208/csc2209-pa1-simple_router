@@ -239,7 +239,6 @@ void sr_handle_ip_packet(struct sr_instance* sr,
         }
       sr_icmp_hdr_t *icmp_hdr = (sr_icmp_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
       /* 8 for echo messege */
-      print_hdr_icmp(packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
       if (icmp_hdr->icmp_type == (uint8_t) 8) {
         send_icmp_message(0, 0, sr, packet, sr_ip_if, ip_hdr, len);
         printf("ICMP reply message");
@@ -307,7 +306,6 @@ void send_icmp_message(uint8_t icmp_type, uint8_t icmp_code, struct sr_instance 
   /* construct icmp header */
   if (icmp_type == 0 && icmp_code == 0) {
     /* icmp echo reply (type0) */
-    printf("construct icmp echo reply");
     sr_icmp_hdr_t *icmp_hdr = (sr_icmp_hdr_t *) (icmp_pkt + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
     icmp_hdr->icmp_code = icmp_code;
     icmp_hdr->icmp_type = icmp_type;
@@ -325,13 +323,10 @@ void send_icmp_message(uint8_t icmp_type, uint8_t icmp_code, struct sr_instance 
     icmp_t3_hdr->icmp_sum = cksum(icmp_t3_hdr, sizeof(sr_icmp_t3_hdr_t));
     icmp_t3_hdr->next_mtu = 0;
     icmp_t3_hdr->unused = 0;
-    sr_send_packet(sr, icmp_pkt, icmp_pkt_len, inf->name);
-    free(icmp_pkt);
   }
-
-
   /* send back/forward icmp messege */
-
-  
+  print_hdr_icmp(icmp_pkt);
+  sr_send_packet(sr, icmp_pkt, icmp_pkt_len, inf->name);
+  free(icmp_pkt);
 }
 
