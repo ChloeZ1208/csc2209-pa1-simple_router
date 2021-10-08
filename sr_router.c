@@ -13,6 +13,8 @@
 
 #include <stdio.h>
 #include <assert.h>
+#include <string.h>
+#include <stdlib.h>
 
 
 #include "sr_if.h"
@@ -123,7 +125,7 @@ void sr_handle_arp_packet(struct sr_instance* sr,
   */
   
   /* Get the interface and tell if it's for me */
-  struct sr_if* sr_arp_if = sr_get_inf(sr, arp_hdr->ar_tip);
+  struct sr_if* sr_arp_if = (struct sr_if*) sr_get_inf(sr, arp_hdr->ar_tip);
   if (sr_arp_if) {
     unsigned short arp_op = ntohs(arp_hdr->ar_op);
     if (arp_op == arp_op_request) {
@@ -145,10 +147,10 @@ void sr_handle_arp_packet(struct sr_instance* sr,
       arp_reply_hdr->ar_hln = arp_hdr->ar_hln; 
       arp_reply_hdr->ar_pln = arp_hdr->ar_pln; 
       arp_reply_hdr->ar_op = htons(arp_op_reply);
-      arp_reply_hdr->ar_sip = arp_hdr->ar_tip;
-      arp_reply_hdr->ar_tip = sr_arp_if->addr;
-      memcpy(arp_reply_hdr->ar_sha, arp_hdr->ar_tha, ETHER_ADDR_LEN); // sender hardware address
-      memcpy(arp_reply_hdr->ar_tha, sr_arp_if->addr, ETHER_ADDR_LEN); // target hardware address
+      arp_reply_hdr->ar_sip = sr_arp_if->ip;
+      arp_reply_hdr->ar_tip = arp_hdr->ar_sip;
+      memcpy(arp_reply_hdr->ar_sha, sr_arp_if->addr, ETHER_ADDR_LEN); 
+      memcpy(arp_reply_hdr->ar_tha, arp_hdr->ar_sha, ETHER_ADDR_LEN); 
 
       /* send arp reply back*/
       sr_send_packet(sr, arp_reply, reply_len, sr_arp_if->name);
@@ -169,7 +171,7 @@ void sr_handle_arp_packet(struct sr_instance* sr,
             sr_ethernet_hdr_t *out_ether_hdr = (sr_ethernet_hdr_t *) out_packets->buf;
             memcpy(out_ether_hdr->ether_dhost, arp_hdr->ar_sha, ETHER_ADDR_LEN);
             memcpy(out_ether_hdr->ether_shost, out_inf->addr, ETHER_ADDR_LEN);
-            sr_send_packet(sr, out_ether_hdr, out_packets->len, out_packets->iface);
+            sr_send_packet(sr, out_packets->buf, out_packets->len, out_packets->iface);
           }
           out_packets = out_packets->next;
         }
@@ -222,7 +224,7 @@ void sr_handle_ip_packet(struct sr_instance* sr,
   }
 
   /* get the interface and tell if it's for me */
-  struct sr_if* sr_ip_if = sr_get_inf(sr, ip_hdr->ip_dst);
+  struct sr_if* sr_ip_if = (struct sr_if*) sr_get_inf(sr, ip_hdr->ip_dst);
   if (sr_ip_if) {
     /* if the ip packet is destined towards one of the interfaces*/
     unsigned short ip_op = ntohs(ip_hdr->ip_p);
@@ -266,7 +268,7 @@ void construct_ether_hdr(sr_ethernet_hdr_t *old_ether_hdr, sr_ethernet_hdr_t *ne
 struct sr_if *sr_get_inf(struct sr_instance *sr, uint32_t curr_addr) {
   struct sr_if *if_list = sr->if_list; /* get interface list */
   while(if_list) {
-    if (if_list->addr == curr_addr) {
+    if (if_list->ip == curr_addr) {
       return if_list;
     }
     if_list = if_list->next;
