@@ -228,9 +228,8 @@ void sr_handle_ip_packet(struct sr_instance* sr,
   struct sr_if* sr_ip_if = (struct sr_if*) sr_get_interface(sr, interface);
   if (sr_ip_if) {
     /* if the ip packet is destined towards one of the interfaces*/
-    unsigned short ip_op = ntohs(ip_hdr->ip_p);
-    /* ICMP echo request */
-    if (ip_op == ip_protocol_icmp) {
+    if (ip_hdr->ip_p == ip_protocol_icmp) {
+      /* ICMP echo request */
       printf("ICMP echo request");
       /* icmp minimum length check */
       if (len < sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_hdr_t))
@@ -245,8 +244,8 @@ void sr_handle_ip_packet(struct sr_instance* sr,
         printf("ICMP reply message");
       }
     } else {
+      printf("TCP/UDP request");
       send_icmp_message(3, 3, sr, packet, sr_ip_if, ip_hdr, len);
-      printf("TCP/DUP message");
     }
   } else {
     /* if the ip packet is NOT destined towards one of the interfaces*/
