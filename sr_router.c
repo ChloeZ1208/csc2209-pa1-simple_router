@@ -210,13 +210,14 @@ void sr_handle_ip_packet(struct sr_instance* sr,
   sr_ip_hdr_t *ip_hdr =  (sr_ip_hdr_t *)packet + sizeof(sr_ethernet_hdr_t);
 
   /* ip version check - no version provided */
-  // if (ip_hdr->ip_tos != 4) {
-  //   fprintf(stderr, "Packet discard: Invalid IP version");
-  //   return;
-  // }
+  /* if (ip_hdr->ip_tos != 4) {
+     fprintf(stderr, "Packet discard: Invalid IP version");
+     return;
+   } */
 
   /* checksum */
-  uint16_t old_cksum = ip_hdr->ip_sum;
+  uint16_t old_cksum;
+  old_cksum = ip_hdr->ip_sum;
   ip_hdr->ip_sum = 0; /* to calculate the checksum, the checksum filed should be zeroed out first */
   if (old_cksum != cksum(ip_hdr, ip_hdr->ip_len)) {
     fprintf(stderr, "Packet discard: Checksum failed");
@@ -265,16 +266,16 @@ void construct_ether_hdr(sr_ethernet_hdr_t *old_ether_hdr, sr_ethernet_hdr_t *ne
 }
 
 /* helper function: tell whether or not the packet is towards one of the interfaces */
-// struct sr_if *sr_get_inf(struct sr_instance *sr, uint32_t curr_addr) {
-//   struct sr_if *if_list = sr->if_list; /* get interface list */
-//   while(if_list) {
-//     if (if_list->ip == curr_addr) {
-//       return if_list;
-//     }
-//     if_list = if_list->next;
-//   }
-//   return NULL;
-// }
+/* struct sr_if *sr_get_inf(struct sr_instance *sr, uint32_t curr_addr) {
+   struct sr_if *if_list = sr->if_list; /* get interface list */
+/*   while(if_list) {
+     if (if_list->ip == curr_addr) {
+       return if_list;
+     }
+     if_list = if_list->next;
+   }
+   return NULL;
+ } */
 
 /* helper function: all ICMP messages sender */
 void send_icmp_message(uint8_t icmp_type, uint8_t icmp_code, struct sr_instance *sr, uint8_t *packet, struct sr_if *inf, sr_ip_hdr_t *ip_hdr, unsigned int len) {
