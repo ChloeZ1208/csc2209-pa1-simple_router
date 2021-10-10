@@ -342,6 +342,7 @@ void forward_ip(sr_ip_hdr_t *ip_hdr, struct sr_instance *sr, uint8_t *packet, un
       if (len < curr_rt->mask.s_addr) {
         len = curr_rt->mask.s_addr;
         lpm_address = curr_rt->gw.s_addr;
+        strncpy(sr_rt_inf, curr_rt->interface, sr_IFACE_NAMELEN);
       }
     }
     curr_rt = curr_rt->next;
