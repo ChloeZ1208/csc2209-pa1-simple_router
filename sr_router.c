@@ -318,7 +318,7 @@ void handle_icmp_message(uint8_t icmp_type, uint8_t icmp_code, struct sr_instanc
 }
 
 /* helper function: forwarding ip that is not towards the router's interfaces */
-void forward_ip(sr_ip_hdr_t *ip_hdr, struct sr_instance *sr, uint8_t *packet, unsigned int len, struct sr_inf* sr_rt_inf, sr_ethernet_hdr_t *ether_hdr) {
+void forward_ip(sr_ip_hdr_t *ip_hdr, struct sr_instance *sr, uint8_t *packet, unsigned int len, struct sr_if* sr_rt_inf, sr_ethernet_hdr_t *ether_hdr) {
   /* ttl check */
   if (ip_hdr->ip_ttl <= 1) {
     printf("ICMP time exceeded!\n");
