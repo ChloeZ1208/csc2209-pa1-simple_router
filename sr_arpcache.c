@@ -29,7 +29,7 @@ void sr_arpcache_sweepreqs(struct sr_instance *sr) {
 void handle_arpreq(struct sr_arpreq *request, struct sr_instance *sr) {
     time_t now;
     time(&now);
-    if (difftime(now, request->sent) >= 1.0) {
+    if (difftime(now, request->sent) > 1.0) {
         if(request->times_sent >= 5) {
             struct sr_packet *packets = request->packets;
             while (packets) {

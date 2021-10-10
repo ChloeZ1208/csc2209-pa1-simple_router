@@ -319,7 +319,6 @@ void handle_icmp_message(uint8_t icmp_type, uint8_t icmp_code, struct sr_instanc
 
 /* helper function: forwarding ip that is not towards the router's interfaces */
 void forward_ip(sr_ip_hdr_t *ip_hdr, struct sr_instance *sr, uint8_t *packet, unsigned int len, struct sr_if* sr_rt_inf, sr_ethernet_hdr_t *ether_hdr) {
-  printf("ready to forward!");
   /* ttl check */
   if (ip_hdr->ip_ttl <= 1) {
     printf("ICMP time exceeded!\n");
@@ -349,19 +348,19 @@ void forward_ip(sr_ip_hdr_t *ip_hdr, struct sr_instance *sr, uint8_t *packet, un
   }
   /* if match, check arp cache*/
   if (lpm_rt) {
-    printf("LPM match");
-    struct sr_arpentry* arp_entry = sr_arpcache_lookup(&sr->cache, lpm_rt->gw.s_addr);
+    printf("LPM match\n");
+    struct sr_arpentry *arp_entry = sr_arpcache_lookup(&sr->cache, (uint32_t) lpm_rt->gw.s_addr);
     if (arp_entry) {
-      printf("ARP cache hit");
+      printf("ARP cache hit\n");
       /* if hit, change ethernet src/dst, send packet */
       memcpy(ether_hdr->ether_dhost, arp_entry->mac, ETHER_ADDR_LEN);
       memcpy(ether_hdr->ether_shost, sr_rt_inf->addr, ETHER_ADDR_LEN);
       sr_send_packet(sr, packet, len, sr_rt_inf->name);
-      printf("Send frame to next hop");
+      printf("Send frame to next hop\n");
       free(arp_entry);
     } else {
       /* else, send arp request(handle_arprequest)*/
-      printf("ARP cache miss, resend");
+      printf("ARP cache miss, resend\n");
       struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, lpm_rt->gw.s_addr, packet, len, sr_rt_inf->name);
       handle_arpreq(req, sr);
     }
