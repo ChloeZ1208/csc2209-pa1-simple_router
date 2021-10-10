@@ -342,7 +342,6 @@ void forward_ip(sr_ip_hdr_t *ip_hdr, struct sr_instance *sr, uint8_t *packet, un
       if (len < curr_rt->mask.s_addr) {
         len = curr_rt->mask.s_addr;
         lpm_address = curr_rt->gw.s_addr;
-        strncpy(sr_rt_inf, curr_rt->interface, sr_IFACE_NAMELEN);
       }
     }
     curr_rt = curr_rt->next;
@@ -351,7 +350,7 @@ void forward_ip(sr_ip_hdr_t *ip_hdr, struct sr_instance *sr, uint8_t *packet, un
   if (lpm_address) {
     printf("LPM match\n");
     struct sr_arpentry *arp_entry = sr_arpcache_lookup(&sr->cache, lpm_address);
-    if (arp_entry) {
+    if (arp_entry != NULL) {
       printf("ARP cache hit\n");
       /* if hit, change ethernet src/dst, send packet */
       memcpy(ether_hdr->ether_dhost, arp_entry->mac, ETHER_ADDR_LEN);
@@ -362,7 +361,7 @@ void forward_ip(sr_ip_hdr_t *ip_hdr, struct sr_instance *sr, uint8_t *packet, un
     } else {
       /* else, send arp request(handle_arprequest)*/
       printf("ARP cache miss, resend\n");
-      struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, lpm_address, packet, len, sr_rt_inf->name);
+      struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_dst, packet, len, sr_rt_inf->name);
       handle_arpreq(req, sr);
     }
   } else {
