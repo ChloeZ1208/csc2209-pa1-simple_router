@@ -10,6 +10,7 @@
 #include "sr_router.h"
 #include "sr_if.h"
 #include "sr_protocol.h"
+#include "sr_utils.h"
 
 /* 
   This function gets called every second. For each request sent out, we keep
@@ -18,6 +19,58 @@
 */
 void sr_arpcache_sweepreqs(struct sr_instance *sr) { 
     /* Fill this in */
+    struct sr_arpreq *request;
+    request = sr->cache.requests;
+    for(request = sr->cache.requests; request; request = request->next) {
+        handle_arpreq(request, sr);
+    }
+}
+
+void handle_arpreq(struct sr_arpreq *request, struct sr_instance *sr) {
+    time_t now;
+    if (difftime(now, request->sent) >= 1.0) {
+        if(request->times_sent >= 5) {
+            struct sr_packet *packets = request->packets;
+            while (packets) {
+                struct sr_if *sr_inf = sr_get_interface(sr, packets->iface);
+                if (sr_inf) {
+                    handle_icmp_message(3, 1, sr, packets, sr_inf, packets->buf, packets->len);
+                }
+                packets = packets->next;
+            }
+            sr_arpreq_destroy(&sr->cache,request);
+        } else {
+            struct sr_packet *packets = request->packets;
+            struct sr_if *sr_inf = sr_get_interface(sr, packets->iface);
+            /* if interface exists, send arp request broadcast */
+            if (sr_inf) {
+                /* allocate memory for arp request */
+                unsigned int arp_req_len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_arp_hdr_t);
+                uint8_t *arp_req = malloc(arp_req_len);
+
+                /* construct ethernet header */
+                sr_ethernet_hdr_t *ether_arp_req_hdr = (sr_ethernet_hdr_t *)arp_req;
+                /* arp request broadcast destination: FF:FF:FF:FF:FF:FF */
+                construct_ether_hdr(request->packets, 0xFF, sr_inf, ethertype_arp);
+
+                /* construct arp request header */
+                sr_arp_hdr_t *arp_req_hdr = (sr_arp_hdr_t *)(arp_req + sizeof(sr_ethernet_hdr_t));
+                arp_req_hdr->ar_hrd = htons(arp_hrd_ethernet);
+                arp_req_hdr->ar_pro = htons(ethertype_ip); 
+                arp_req_hdr->ar_hln = ETHER_ADDR_LEN;
+                arp_req_hdr->ar_pln = 4; 
+                arp_req_hdr->ar_op = htons(arp_op_request);
+                arp_req_hdr->ar_sip = sr_inf->ip;
+                arp_req_hdr->ar_tip = request->ip;
+                memcpy(arp_req_hdr->ar_sha, sr_inf->addr, ETHER_ADDR_LEN); 
+                memcpy(arp_req_hdr->ar_tha, 0x00, ETHER_ADDR_LEN);
+                sr_send_packet(sr, arp_req, arp_req_len, sr_inf->name);
+                free(arp_req);
+                request->sent = now;
+                request->times_sent++;
+            }
+        }
+    }
 }
 
 /* You should not need to touch the rest of this code. */

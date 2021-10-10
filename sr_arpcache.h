@@ -147,4 +147,12 @@ int   sr_arpcache_init(struct sr_arpcache *cache);
 int   sr_arpcache_destroy(struct sr_arpcache *cache);
 void *sr_arpcache_timeout(void *cache_ptr);
 
+/* The function is called every second, we send 5 ARP requests, then we send ICMP 
+   host unreachable back to all packets waiting on this ARP request
+   For each request sent out, we keep checking whether we should resend 
+   an request or destroy the arp request.
+*/
+void sr_arpcache_sweepreqs(struct sr_instance *sr);
+void handle_arpreq(struct sr_arpreq *request, struct sr_instance *sr);
+
 #endif
