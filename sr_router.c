@@ -335,13 +335,13 @@ void forward_ip(sr_ip_hdr_t *ip_hdr, struct sr_instance *sr, uint8_t *packet, un
   /* get addr in routing table */
   struct sr_rt* curr_rt = sr->routing_table; 
   /* check longest prefix match */
-  uint32_t *lpm_address;
+  uint32_t lpm_address;
   /* if the prefix matches the destination's, it's a match */
   while (curr_rt) {
     if ((ip_hdr->ip_dst & curr_rt->mask.s_addr) == (curr_rt->dest.s_addr & curr_rt->mask.s_addr)) {
       if (len < curr_rt->mask.s_addr) {
         len = curr_rt->mask.s_addr;
-        *lpm_address = curr_rt->gw.s_addr;
+        lpm_address = curr_rt->gw.s_addr;
       }
     }
     curr_rt = curr_rt->next;
