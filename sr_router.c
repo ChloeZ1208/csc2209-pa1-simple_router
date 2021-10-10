@@ -288,7 +288,6 @@ void handle_icmp_message(uint8_t icmp_type, uint8_t icmp_code, struct sr_instanc
   new_ip_hdr->ip_sum = 0;
   new_ip_hdr->ip_sum = cksum(new_ip_hdr, sizeof(sr_ip_hdr_t));
   new_ip_hdr->ip_ttl = 64;
-  new_ip_hdr->ip_len = htons(64);
 
   /* construct icmp header */
   if (icmp_type == 0 && icmp_code == 0) {
