@@ -288,8 +288,7 @@ void handle_icmp_message(uint8_t icmp_type, uint8_t icmp_code, struct sr_instanc
   new_ip_hdr->ip_sum = 0;
   new_ip_hdr->ip_sum = cksum(new_ip_hdr, sizeof(sr_ip_hdr_t));
   new_ip_hdr->ip_ttl = 64;
-  new_ip_hdr->ip_len = htons(98);
-  print_hdr_ip((uint8_t*)new_ip_hdr);
+  new_ip_hdr->ip_len = htons(64);
 
   /* construct icmp header */
   if (icmp_type == 0 && icmp_code == 0) {
@@ -299,7 +298,6 @@ void handle_icmp_message(uint8_t icmp_type, uint8_t icmp_code, struct sr_instanc
     icmp_hdr->icmp_type = icmp_type;
     icmp_hdr->icmp_sum = 0;
     icmp_hdr->icmp_sum = cksum(icmp_hdr, len - sizeof(sr_ethernet_hdr_t) - sizeof(sr_ip_hdr_t));
-    print_hdr_icmp((uint8_t*) icmp_hdr);
   } else {
     /* icmp messege (type3) */
     sr_icmp_t3_hdr_t *icmp_t3_hdr = (sr_icmp_t3_hdr_t *) (icmp_pkt + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
@@ -314,12 +312,15 @@ void handle_icmp_message(uint8_t icmp_type, uint8_t icmp_code, struct sr_instanc
     icmp_t3_hdr->unused = 0;
   }
   /* forward icmp messege */
+  print_hdr_ip((uint8_t*)new_ip_hdr);
+  print_hdr_icmp((uint8_t*) (sr_icmp_hdr_t *) (icmp_pkt + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t)));
   forward_ip(new_ip_hdr, sr, icmp_pkt, icmp_pkt_len, inf, ether_hdr);
   free(icmp_pkt);
 }
 
 /* helper function: forwarding ip that is not towards the router's interfaces */
 void forward_ip(sr_ip_hdr_t *ip_hdr, struct sr_instance *sr, uint8_t *packet, unsigned int len, struct sr_if* sr_rt_inf, sr_ethernet_hdr_t *ether_hdr) {
+  prinf("ready to forward!");
   /* ttl check */
   if (ip_hdr->ip_ttl <= 1) {
     printf("ICMP time exceeded!\n");
@@ -344,8 +345,8 @@ void forward_ip(sr_ip_hdr_t *ip_hdr, struct sr_instance *sr, uint8_t *packet, un
         len = curr_rt->mask.s_addr;
         lpm_rt = curr_rt;
       }
-      curr_rt = curr_rt->next;
     }
+    curr_rt = curr_rt->next;
   }
   /* if match, check arp cache*/
   if (lpm_rt) {
