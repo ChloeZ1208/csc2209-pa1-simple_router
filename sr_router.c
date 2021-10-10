@@ -366,7 +366,7 @@ void forward_ip(sr_ip_hdr_t *ip_hdr, struct sr_instance *sr, uint8_t *packet, un
     }
   } else {
     /* else, send icmp net unreachable(type3 code0)*/
-    pintf("ICMP net unreachable!");
+    printf("ICMP net unreachable!");
     handle_icmp_message(3, 0, sr, packet, sr_rt_inf, ip_hdr, len);
   }
 }
