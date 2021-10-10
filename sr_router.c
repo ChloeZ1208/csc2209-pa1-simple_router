@@ -336,20 +336,23 @@ void forward_ip(sr_ip_hdr_t *ip_hdr, struct sr_instance *sr, uint8_t *packet, un
   struct sr_rt* curr_rt = sr->routing_table; 
   /* check longest prefix match */
   struct sr_rt* lpm_rt;
+  uint32_t *lpm_address;
   /* if the prefix matches the destination's, it's a match */
   while (curr_rt) {
     if ((ip_hdr->ip_dst & curr_rt->mask.s_addr) == (curr_rt->dest.s_addr & curr_rt->mask.s_addr)) {
       if (len < curr_rt->mask.s_addr) {
         len = curr_rt->mask.s_addr;
         lpm_rt = curr_rt;
+        lpm_address = curr_rt->gw.s_addr;
+        strncpy(sr_rt_inf, curr_rt->interface, sr_IFACE_NAMELEN);
       }
     }
     curr_rt = curr_rt->next;
   }
   /* if match, check arp cache*/
-  if (lpm_rt) {
+  if (lpm_address) {
     printf("LPM match\n");
-    struct sr_arpentry *arp_entry = sr_arpcache_lookup(&sr->cache, (uint32_t) lpm_rt->gw.s_addr);
+    struct sr_arpentry *arp_entry = sr_arpcache_lookup(&sr->cache, lpm_address);
     if (arp_entry) {
       printf("ARP cache hit\n");
       /* if hit, change ethernet src/dst, send packet */
