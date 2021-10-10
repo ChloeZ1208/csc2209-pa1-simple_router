@@ -117,6 +117,7 @@ void sr_handle_arp_packet(struct sr_instance* sr,
   sr_arp_hdr_t *arp_hdr =  (sr_arp_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t));
   /* get incoming ethernet header */
   sr_ethernet_hdr_t *ether_hdr = (sr_ethernet_hdr_t *)packet;
+  print_hdr_arp(packet + sizeof(sr_ethernet_hdr_t));
 
   /* tell if the target of the packet is among the router's address
   * tell if it's arp request or reply
@@ -159,7 +160,7 @@ void sr_handle_arp_packet(struct sr_instance* sr,
       /* arp reply */
       printf("ARP reply\n");
       /* cache it and go through request queue */
-      struct sr_arpreq *req_queue = sr_arpcache_insert(&(sr->cache), arp_hdr->ar_sha, arp_hdr->ar_sip);
+      struct sr_arpreq *req_queue = sr_arpcache_insert(&sr->cache, arp_hdr->ar_sha, arp_hdr->ar_sip);
       /* check outstanding packets existence*/
       if (req_queue) {
         struct sr_packet *out_packets = req_queue->packets;
@@ -335,21 +336,21 @@ void forward_ip(sr_ip_hdr_t *ip_hdr, struct sr_instance *sr, uint8_t *packet, un
   /* get addr in routing table */
   struct sr_rt* curr_rt = sr->routing_table; 
   /* check longest prefix match */
-  uint32_t lpm_address;
+  struct sr_rt* lpm_match_rt;
   /* if the prefix matches the destination's, it's a match */
   while (curr_rt) {
     if ((ip_hdr->ip_dst & curr_rt->mask.s_addr) == (curr_rt->dest.s_addr & curr_rt->mask.s_addr)) {
       if (len < curr_rt->mask.s_addr) {
         len = curr_rt->mask.s_addr;
-        lpm_address = curr_rt->gw.s_addr;
+        lpm_match_rt = curr_rt;
       }
     }
     curr_rt = curr_rt->next;
   }
   /* if match, check arp cache*/
-  if (lpm_address) {
+  if (lpm_match_rt) {
     printf("LPM match\n");
-    struct sr_arpentry *arp_entry = sr_arpcache_lookup(&sr->cache, lpm_address);
+    struct sr_arpentry *arp_entry = sr_arpcache_lookup(&sr->cache, lpm_match_rt->gw.s_addr);
     if (arp_entry != NULL) {
       printf("ARP cache hit\n");
       /* if hit, change ethernet src/dst, send packet */
