@@ -338,7 +338,7 @@ void forward_ip(sr_ip_hdr_t *ip_hdr, struct sr_instance *sr, uint8_t *packet, un
   struct sr_rt* lpm_rt;
   /* if the prefix matches the destination's, it's a match */
   while (curr_rt) {
-    if ((ip_hdr->ip_dst & curr_rt->mask.s_addr) == curr_rt->dest.s_addr & curr_rt->mask.s_addr) {
+    if ((ip_hdr->ip_dst & curr_rt->mask.s_addr) == (curr_rt->dest.s_addr & curr_rt->mask.s_addr)) {
       if (len < curr_rt->mask.s_addr) {
         len = curr_rt->mask.s_addr;
         lpm_rt = curr_rt;
@@ -354,14 +354,14 @@ void forward_ip(sr_ip_hdr_t *ip_hdr, struct sr_instance *sr, uint8_t *packet, un
       printf("ARP cache hit");
       /* if hit, change ethernet src/dst, send packet */
       memcpy(ether_hdr->ether_dhost, arp_entry->mac, ETHER_ADDR_LEN);
-      memcpy(ether_hdr->ether_shost, sr_get_interface(sr, sr_rt_inf)->addr, ETHER_ADDR_LEN);
-      sr_send_packet(sr, packet, len, sr_rt_inf);
+      memcpy(ether_hdr->ether_shost, sr_rt_inf->addr, ETHER_ADDR_LEN);
+      sr_send_packet(sr, packet, len, sr_rt_inf->name);
       printf("Send frame to next hop");
       free(arp_entry);
     } else {
       /* else, send arp request(handle_arprequest)*/
       printf("ARP cache miss, resend");
-      struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, lpm_rt->gw.s_addr, packet, len, sr_rt_inf);
+      struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, lpm_rt->gw.s_addr, packet, len, sr_rt_inf->name);
       handle_arpreq(req, sr);
     }
   } else {

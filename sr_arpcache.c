@@ -28,13 +28,14 @@ void sr_arpcache_sweepreqs(struct sr_instance *sr) {
 
 void handle_arpreq(struct sr_arpreq *request, struct sr_instance *sr) {
     time_t now;
+    time(&now);
     if (difftime(now, request->sent) >= 1.0) {
         if(request->times_sent >= 5) {
             struct sr_packet *packets = request->packets;
             while (packets) {
                 struct sr_if *sr_inf = sr_get_interface(sr, packets->iface);
                 if (sr_inf) {
-                    handle_icmp_message(3, 1, sr, packets->buf, sr_inf, packets->buf, packets->len);
+                    handle_icmp_message(3, 1, sr, packets->buf, sr_inf, (sr_ip_hdr_t *)(packets + sizeof(sr_ethernet_hdr_t)), packets->len);
                 }
                 packets = packets->next;
             }
@@ -51,7 +52,7 @@ void handle_arpreq(struct sr_arpreq *request, struct sr_instance *sr) {
                 /* construct ethernet header */
                 sr_ethernet_hdr_t *ether_arp_req_hdr = (sr_ethernet_hdr_t *)arp_req;
                 /* arp request broadcast destination: FF:FF:FF:FF:FF:FF */
-                memcpy(ether_arp_req_hdr->ether_dhost, 0xFF, ETHER_ADDR_LEN);
+                memset(ether_arp_req_hdr->ether_dhost, 0xFF, ETHER_ADDR_LEN);
                 memcpy(ether_arp_req_hdr->ether_shost, sr_inf->addr, ETHER_ADDR_LEN);
                 ether_arp_req_hdr->ether_type = htons(ethertype_arp);
 
