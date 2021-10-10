@@ -66,7 +66,7 @@ void handle_arpreq(struct sr_arpreq *request, struct sr_instance *sr) {
                 arp_req_hdr->ar_sip = sr_inf->ip;
                 arp_req_hdr->ar_tip = request->ip;
                 memcpy(arp_req_hdr->ar_sha, sr_inf->addr, ETHER_ADDR_LEN); 
-                memcpy(arp_req_hdr->ar_tha, 0x00, ETHER_ADDR_LEN);
+                memset(arp_req_hdr->ar_tha, 0x00, ETHER_ADDR_LEN);
                 sr_send_packet(sr, arp_req, arp_req_len, sr_inf->name);
                 free(arp_req);
                 request->sent = now;
