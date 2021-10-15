@@ -34,8 +34,7 @@ void handle_arpreq(struct sr_arpreq * request, struct sr_instance *sr) {
             while (packets) {
                 struct sr_if *sr_inf = sr_get_interface(sr, packets->iface);
                 if (sr_inf) {
-                    uint8_t *buf = packets->buf;
-                    handle_icmp_message(3, 1, sr, buf, sr_inf, packets->len);
+                    handle_icmp_message(3, 1, sr, packets->buf, sr_inf, packets->len);
                 }
                 packets = packets->next;
             }
@@ -61,12 +60,13 @@ void handle_arpreq(struct sr_arpreq * request, struct sr_instance *sr) {
                 arp_req_hdr->ar_hrd = htons(arp_hrd_ethernet);
                 arp_req_hdr->ar_pro = htons(ethertype_ip); 
                 arp_req_hdr->ar_hln = ETHER_ADDR_LEN;
-                arp_req_hdr->ar_pln = 4; 
+                arp_req_hdr->ar_pln = sizeof(uint32_t);
                 arp_req_hdr->ar_op = htons(arp_op_request);
                 arp_req_hdr->ar_sip = sr_inf->ip;
                 arp_req_hdr->ar_tip = request->ip;
                 memcpy(arp_req_hdr->ar_sha, sr_inf->addr, ETHER_ADDR_LEN); 
                 memset(arp_req_hdr->ar_tha, 0x00, ETHER_ADDR_LEN);
+                printf("send ARP request.\n");
                 sr_send_packet(sr, arp_req, arp_req_len, sr_inf->name);
                 free(arp_req);
                 request->sent = now;
