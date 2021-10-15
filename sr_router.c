@@ -286,33 +286,33 @@ void handle_icmp_message(uint8_t icmp_type, uint8_t icmp_code, struct sr_instanc
   new_ip_hdr->ip_dst = ((sr_ip_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t)))->ip_src;
   new_ip_hdr->ip_p = ip_protocol_icmp;
   new_ip_hdr->ip_sum = 0;
-  new_ip_hdr->ip_sum = cksum(new_ip_hdr, sizeof(sr_ip_hdr_t));
   new_ip_hdr->ip_ttl = 64;
+  new_ip_hdr->ip_sum = cksum(new_ip_hdr, sizeof(sr_ip_hdr_t));
 
   /* construct icmp header */
   if (icmp_type == 0 && icmp_code == 0) {
     /* icmp echo reply (type0) */
     sr_icmp_hdr_t *icmp_hdr = (sr_icmp_hdr_t *) (icmp_pkt + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
+    icmp_hdr->icmp_sum = 0;
     icmp_hdr->icmp_code = icmp_code;
     icmp_hdr->icmp_type = icmp_type;
-    icmp_hdr->icmp_sum = 0;
     icmp_hdr->icmp_sum = cksum(icmp_hdr, len - sizeof(sr_ethernet_hdr_t) - sizeof(sr_ip_hdr_t));
   } else {
     /* icmp messege (type3) */
     sr_icmp_t3_hdr_t *icmp_t3_hdr = (sr_icmp_t3_hdr_t *) (icmp_pkt + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
     /* Internet Header + 64 bits of Data Datagram */
     memcpy(icmp_t3_hdr->data, packet + sizeof(sr_ethernet_hdr_t), sizeof(sr_ip_hdr_t));
-    memcpy(icmp_t3_hdr->data + sizeof(sr_ip_hdr_t), packet + sizeof(sr_ethernet_hdr_t), 8);
+    memcpy(icmp_t3_hdr->data + sizeof(sr_ip_hdr_t), packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t), 8);
     icmp_t3_hdr->icmp_code = icmp_code;
     icmp_t3_hdr->icmp_type = icmp_type;
     icmp_t3_hdr->icmp_sum = 0;
-    icmp_t3_hdr->icmp_sum = cksum(icmp_t3_hdr, sizeof(sr_icmp_t3_hdr_t));
     icmp_t3_hdr->next_mtu = 0;
     icmp_t3_hdr->unused = 0;
+    icmp_t3_hdr->icmp_sum = cksum(icmp_t3_hdr, sizeof(sr_icmp_t3_hdr_t));
   }
   /* forward icmp messege */
   print_hdr_ip((uint8_t*)new_ip_hdr);
-  print_hdr_icmp((uint8_t*) (sr_icmp_hdr_t *) (icmp_pkt + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t)));
+  print_hdr_icmp((uint8_t*)(icmp_pkt + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t)));
   forward_ip(new_ip_hdr, sr, icmp_pkt, icmp_pkt_len, inf, ether_hdr);
   free(icmp_pkt);
 }
