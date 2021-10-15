@@ -349,7 +349,7 @@ void forward_ip(sr_ip_hdr_t *ip_hdr, struct sr_instance *sr, uint8_t *packet, un
   /* if match, check arp cache*/
   if (lpm_match_rt) {
     printf("LPM match\n");
-    struct sr_arpentry *arp_entry = sr_arpcache_lookup(&sr->cache, lpm_match_rt->gw.s_addr);
+    struct sr_arpentry *arp_entry = sr_arpcache_lookup(&sr->cache, ip_hdr->ip_dst);
     if (arp_entry != NULL) {
       printf("ARP cache hit\n");
       /* if hit, change ethernet src/dst, send packet */
@@ -361,7 +361,7 @@ void forward_ip(sr_ip_hdr_t *ip_hdr, struct sr_instance *sr, uint8_t *packet, un
     } else {
       /* else, send arp request(handle_arprequest)*/
       printf("ARP cache miss, resend\n");
-      struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, lpm_match_rt->gw.s_addr, packet, len, sr_rt_inf->name);
+      struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_dst, packet, len, sr_rt_inf->name);
       handle_arpreq(req, sr);
     }
   } else {
