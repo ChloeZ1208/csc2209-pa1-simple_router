@@ -40,7 +40,7 @@ void handle_arpreq(struct sr_arpreq * request, struct sr_instance *sr) {
                 }
                 packets = packets->next;
             }
-            sr_arpreq_destroy(&sr->cache,request);
+            sr_arpreq_destroy(&(sr->cache),request);
         } else {
             struct sr_packet *packets = request->packets;
             struct sr_if *sr_inf = sr_get_interface(sr, packets->iface);
