@@ -32,7 +32,7 @@ void sr_arpcache_sweepreqs(struct sr_instance *sr) {
 }
 
 void handle_arpreq(struct sr_arpreq * request, struct sr_instance *sr) {
-    time_t now;
+    time_t now = time(0); /*get current time*/
     if (difftime(now, request->sent) >= 1.0) {
         printf("in arp req?\n");
         if(request->times_sent >= 5) {
