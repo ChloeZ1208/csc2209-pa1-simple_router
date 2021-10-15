@@ -256,7 +256,6 @@ void sr_handle_ip_packet(struct sr_instance* sr,
 /* helper function: all ICMP messages sender */
 void handle_icmp_message(uint8_t icmp_type, uint8_t icmp_code, struct sr_instance *sr, uint8_t *packet, struct sr_if *inf, sr_ip_hdr_t *ip_hdr, unsigned int len) {
   /* first, classification by type */
-  uint8_t *icmp_pkt;
   unsigned int icmp_pkt_len;
   if (icmp_type == 0) {
     /* icmp echo */
@@ -265,7 +264,7 @@ void handle_icmp_message(uint8_t icmp_type, uint8_t icmp_code, struct sr_instanc
     icmp_pkt_len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t);
   }
   /* allocate memory for icmp packet */
-  icmp_pkt = (uint8_t *)malloc(icmp_pkt_len);
+  uint8_t *icmp_pkt = (uint8_t *)malloc(icmp_pkt_len);
   memcpy(icmp_pkt, packet, icmp_pkt_len);
   /* construct ethernet header */
   sr_ethernet_hdr_t * ether_hdr = (sr_ethernet_hdr_t *)icmp_pkt;
