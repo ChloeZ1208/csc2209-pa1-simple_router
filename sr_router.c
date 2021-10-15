@@ -361,7 +361,7 @@ void forward_ip(sr_ip_hdr_t *ip_hdr, struct sr_instance *sr, uint8_t *packet, un
     } else {
       /* else, send arp request(handle_arprequest)*/
       printf("ARP cache miss, resend\n");
-      struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, lpm_match_rt->gw.s_addr, packet, len, sr_rt_inf->name);
+      struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_dst, packet, len, sr_rt_inf->name);
       handle_arpreq(req, sr);
     }
   } else {
