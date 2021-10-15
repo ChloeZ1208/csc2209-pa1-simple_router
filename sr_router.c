@@ -265,7 +265,7 @@ void handle_icmp_message(uint8_t icmp_type, uint8_t icmp_code, struct sr_instanc
     icmp_pkt_len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t);
   }
   /* allocate memory for icmp packet */
-  icmp_pkt = malloc(icmp_pkt_len);
+  icmp_pkt = (uint8_t *)malloc(icmp_pkt_len);
   memcpy(icmp_pkt, packet, icmp_pkt_len);
   /* construct ethernet header */
   sr_ethernet_hdr_t * ether_hdr = (sr_ethernet_hdr_t *)icmp_pkt;

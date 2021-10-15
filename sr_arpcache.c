@@ -34,7 +34,8 @@ void handle_arpreq(struct sr_arpreq * request, struct sr_instance *sr) {
             while (packets) {
                 struct sr_if *sr_inf = sr_get_interface(sr, packets->iface);
                 if (sr_inf) {
-                    handle_icmp_message(3, 1, sr, packets->buf, sr_inf, (sr_ip_hdr_t *)(packets + sizeof(sr_ethernet_hdr_t)), packets->len);
+                    uint8_t *buf = packets->buf;
+                    handle_icmp_message(3, 1, sr, buf, sr_inf, (sr_ip_hdr_t *)((char *)buf + sizeof(sr_ethernet_hdr_t)), packets->len);
                 }
                 packets = packets->next;
             }
