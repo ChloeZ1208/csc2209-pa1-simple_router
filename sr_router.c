@@ -239,12 +239,12 @@ void sr_handle_ip_packet(struct sr_instance* sr,
       if (icmp_hdr->icmp_type == (uint8_t) 8) {
         printf("ICMP echo request\n");
         /* construct icmp echo reply and forward the ip*/
-        handle_icmp_message(0, 0, sr, packet, sr_rt_if, ip_hdr, len);
+        handle_icmp_message(0, 0, sr, packet, sr_rt_if,len);
       }
     } else {
       printf("TCP/UDP messege\n");
       /* construct icmp echo reply and forward the ip*/
-      handle_icmp_message(3, 3, sr, packet, sr_rt_if, ip_hdr, len);
+      handle_icmp_message(3, 3, sr, packet, sr_rt_if, len);
     }
   } else {
     /* if the ip packet is NOT destined towards the router interfaces*/
@@ -254,7 +254,7 @@ void sr_handle_ip_packet(struct sr_instance* sr,
 }
 
 /* helper function: all ICMP messages sender */
-void handle_icmp_message(uint8_t icmp_type, uint8_t icmp_code, struct sr_instance *sr, uint8_t *packet, struct sr_if *inf, sr_ip_hdr_t *ip_hdr, unsigned int len) {
+void handle_icmp_message(uint8_t icmp_type, uint8_t icmp_code, struct sr_instance *sr, uint8_t *packet, struct sr_if *inf, unsigned int len) {
   /* first, classification by type */
   unsigned int icmp_pkt_len;
   if (icmp_type == 0) {
@@ -275,15 +275,15 @@ void handle_icmp_message(uint8_t icmp_type, uint8_t icmp_code, struct sr_instanc
   /* construct ip header */
   if ((icmp_type == 3 && icmp_code == 3) || (icmp_type == 0 && icmp_code == 0)) {
     /* icmp echo reply / port unreachable, source is the destination of the incoming ip */
-    new_ip_hdr->ip_src = ip_hdr->ip_dst;
+    new_ip_hdr->ip_src = ((sr_ip_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t)))->ip_dst;
   } else {
     /* otherwise, source should be the ip from the router interface */
     new_ip_hdr->ip_src = inf->ip;
   }
   if (icmp_type == 3) {
-    new_ip_hdr->ip_len = sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t);
+    new_ip_hdr->ip_len = htons(sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t));
   }
-  new_ip_hdr->ip_dst = ip_hdr->ip_src;
+  new_ip_hdr->ip_dst = ((sr_ip_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t)))->ip_src;
   new_ip_hdr->ip_p = ip_protocol_icmp;
   new_ip_hdr->ip_sum = 0;
   new_ip_hdr->ip_sum = cksum(new_ip_hdr, sizeof(sr_ip_hdr_t));
@@ -323,7 +323,7 @@ void forward_ip(sr_ip_hdr_t *ip_hdr, struct sr_instance *sr, uint8_t *packet, un
   if (ip_hdr->ip_ttl <= 1) {
     printf("ICMP time exceeded!\n");
     /* send icmp time exceeded messege */
-    handle_icmp_message(11, 0, sr, packet, sr_rt_inf, ip_hdr, len);
+    handle_icmp_message(11, 0, sr, packet, sr_rt_inf, len);
   }
   /* decrement ttl */
   ip_hdr->ip_ttl--;
@@ -367,7 +367,7 @@ void forward_ip(sr_ip_hdr_t *ip_hdr, struct sr_instance *sr, uint8_t *packet, un
   } else {
     /* else, send icmp net unreachable(type3 code0)*/
     printf("ICMP net unreachable!");
-    handle_icmp_message(3, 0, sr, packet, sr_rt_inf, ip_hdr, len);
+    handle_icmp_message(3, 0, sr, packet, sr_rt_inf, len);
   }
 }
 
