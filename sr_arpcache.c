@@ -30,7 +30,7 @@ void handle_arpreq(struct sr_arpreq * request, struct sr_instance *sr) {
     time_t now;
     time(&now);
     if (difftime(now, request->sent) >= 1.0) {
-        print("in arp req?\n");
+        printf("in arp req?\n");
         if(request->times_sent >= 5) {
             struct sr_packet *packets = request->packets;
             while (packets) {
