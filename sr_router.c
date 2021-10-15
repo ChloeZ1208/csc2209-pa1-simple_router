@@ -160,7 +160,7 @@ void sr_handle_arp_packet(struct sr_instance* sr,
       /* arp reply */
       printf("ARP reply\n");
       /* cache it and go through request queue */
-      struct sr_arpreq *req_queue = sr_arpcache_insert(&(sr->cache), arp_hdr->ar_sha, arp_hdr->ar_sip);
+      struct sr_arpreq *req_queue = sr_arpcache_insert(&sr->cache, arp_hdr->ar_sha, arp_hdr->ar_sip);
       /* check outstanding packets existence*/
       if (req_queue) {
         struct sr_packet *out_packets = req_queue->packets;
@@ -176,7 +176,7 @@ void sr_handle_arp_packet(struct sr_instance* sr,
           }
           out_packets = out_packets->next;
         }
-        sr_arpreq_destroy(&(sr->cache), req_queue);
+        sr_arpreq_destroy(&sr->cache, req_queue);
       }
       return;
     } else {
@@ -349,7 +349,7 @@ void forward_ip(sr_ip_hdr_t *ip_hdr, struct sr_instance *sr, uint8_t *packet, un
   /* if match, check arp cache*/
   if (lpm_match_rt) {
     printf("LPM match\n");
-    struct sr_arpentry *arp_entry = sr_arpcache_lookup(&(sr->cache), lpm_match_rt->gw.s_addr);
+    struct sr_arpentry *arp_entry = sr_arpcache_lookup(&sr->cache, lpm_match_rt->gw.s_addr);
     if (arp_entry != NULL) {
       printf("ARP cache hit\n");
       /* if hit, change ethernet src/dst, send packet */
@@ -361,7 +361,7 @@ void forward_ip(sr_ip_hdr_t *ip_hdr, struct sr_instance *sr, uint8_t *packet, un
     } else {
       /* else, send arp request(handle_arprequest)*/
       printf("ARP cache miss, resend\n");
-      struct sr_arpreq *req = sr_arpcache_queuereq(&(sr->cache), lpm_match_rt->gw.s_addr, packet, len, sr_rt_inf->name);
+      struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, lpm_match_rt->gw.s_addr, packet, len, sr_rt_inf->name);
       handle_arpreq(req, sr);
     }
   } else {
