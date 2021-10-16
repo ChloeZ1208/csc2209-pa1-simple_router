@@ -243,13 +243,69 @@ void sr_handle_ip_packet(struct sr_instance* sr,
       }
     } else {
       printf("TCP/UDP messege\n");
-      /* construct icmp echo reply and forward the ip*/
+      /* construct icmp port unreachable */
       handle_icmp_message(3, 3, sr, packet, sr_rt_if, len);
     }
   } else {
     /* if the ip packet is NOT destined towards the router interfaces*/
+    /* ttl check */
+    if (ip_hdr->ip_ttl <= 1) {
+      printf("ICMP time exceeded!\n");
+      /* send icmp time exceeded messege */
+      handle_icmp_message(11, 0, sr, packet, sr_rt_if, len);
+    }
+    /* decrement ttl */
+    ip_hdr->ip_ttl--;
+    /* checksum */
+    ip_hdr->ip_sum = 0; /* to calculate the checksum, the checksum filed should be zeroed out first */
+    ip_hdr->ip_sum = cksum(ip_hdr, sizeof(sr_ip_hdr_t));
     sr_ethernet_hdr_t * ether_hdr = (sr_ethernet_hdr_t *)packet;
-    forward_ip(ip_hdr, sr, packet, len, sr_rt_if, ether_hdr);
+    /* check routing table and perform LPM*/
+    /* get addr in routing table */
+    struct sr_rt* curr_rt = sr->routing_table; 
+    /* check longest prefix match */
+    struct sr_rt* lpm_match_rt;
+    /* if the prefix matches the destination's, it's a match */
+    while (curr_rt) {
+      if ((ip_hdr->ip_dst & curr_rt->mask.s_addr) == (curr_rt->dest.s_addr & curr_rt->mask.s_addr)) {
+        if (len < curr_rt->mask.s_addr) {
+          len = curr_rt->mask.s_addr;
+          lpm_match_rt = curr_rt;
+        }
+      }
+      curr_rt = curr_rt->next;
+    }
+    /* if match, check arp cache*/
+    if (lpm_match_rt) {
+      printf("LPM match\n");
+      struct sr_arpentry *arp_entry = sr_arpcache_lookup(&sr->cache, lpm_match_rt->gw.s_addr);
+      if (arp_entry != NULL) {
+        printf("ARP cache hit\n");
+        /* if hit, change ethernet src/dst, send packet to next frame */
+        ip_hdr->ip_ttl--;
+        ip_hdr->ip_sum = 0;
+        uint16_t new_ip_sum = cksum(ip_hdr, sizeof(sr_ip_hdr_t));
+        ip_hdr->ip_sum = new_ip_sum;
+        memcpy(ether_hdr->ether_dhost, arp_entry->mac, ETHER_ADDR_LEN);
+        memcpy(ether_hdr->ether_shost, sr_rt_if->addr, ETHER_ADDR_LEN);
+        sr_send_packet(sr, packet, len, sr_rt_if->name);
+        printf("Send frame to next hop\n");
+        free(arp_entry);
+      } else {
+        /* else, send arp request(handle_arprequest)*/
+        ip_hdr->ip_ttl--;
+        ip_hdr->ip_sum = 0;
+        uint16_t new_ip_sum = cksum(ip_hdr, sizeof(sr_ip_hdr_t));
+        ip_hdr->ip_sum = new_ip_sum;
+        printf("ARP cache miss, resend\n");
+        struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_dst, packet, len, sr_rt_if->name);
+        handle_arpreq(req, sr);
+      }
+    } else {
+      /* else, send icmp net unreachable(type3 code0)*/
+      printf("ICMP net unreachable!");
+      handle_icmp_message(3, 0, sr, packet, sr_rt_if, len);
+    }
   }
 }
 
@@ -313,32 +369,20 @@ void handle_icmp_message(uint8_t icmp_type, uint8_t icmp_code, struct sr_instanc
   /* forward icmp messege */
   print_hdr_ip((uint8_t*)new_ip_hdr);
   print_hdr_icmp((uint8_t*)(icmp_pkt + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t)));
-  forward_ip(new_ip_hdr, sr, icmp_pkt, icmp_pkt_len, inf, ether_hdr);
+  forward_new_ip(new_ip_hdr, sr, icmp_pkt, icmp_pkt_len, inf, ether_hdr);
   free(icmp_pkt);
 }
 
-/* helper function: forwarding ip that is not towards the router's interfaces */
-void forward_ip(sr_ip_hdr_t *ip_hdr, struct sr_instance *sr, uint8_t *packet, unsigned int len, struct sr_if* sr_rt_inf, sr_ethernet_hdr_t *ether_hdr) {
-  /* ttl check */
-  if (ip_hdr->ip_ttl <= 1) {
-    printf("ICMP time exceeded!\n");
-    /* send icmp time exceeded messege */
-    handle_icmp_message(11, 0, sr, packet, sr_rt_inf, len);
-  }
-  /* decrement ttl */
-  ip_hdr->ip_ttl--;
-  /* checksum */
-  ip_hdr->ip_sum = 0; /* to calculate the checksum, the checksum filed should be zeroed out first */
-  ip_hdr->ip_sum = cksum(ip_hdr, sizeof(sr_ip_hdr_t));
+/* helper function: forwarding ip that is not towards the router's interfaces (after ip header construction) */
+void forward_new_ip(sr_ip_hdr_t *new_ip_hdr, struct sr_instance *sr, uint8_t *packet, unsigned int len, struct sr_if* sr_rt_inf, sr_ethernet_hdr_t *ether_hdr) {
   /* check routing table and perform LPM*/
-
   /* get addr in routing table */
   struct sr_rt* curr_rt = sr->routing_table; 
   /* check longest prefix match */
   struct sr_rt* lpm_match_rt;
   /* if the prefix matches the destination's, it's a match */
   while (curr_rt) {
-    if ((ip_hdr->ip_dst & curr_rt->mask.s_addr) == (curr_rt->dest.s_addr & curr_rt->mask.s_addr)) {
+    if ((new_ip_hdr->ip_src & curr_rt->mask.s_addr) == (curr_rt->dest.s_addr & curr_rt->mask.s_addr)) {
       if (len < curr_rt->mask.s_addr) {
         len = curr_rt->mask.s_addr;
         lpm_match_rt = curr_rt;
@@ -349,7 +393,7 @@ void forward_ip(sr_ip_hdr_t *ip_hdr, struct sr_instance *sr, uint8_t *packet, un
   /* if match, check arp cache*/
   if (lpm_match_rt) {
     printf("LPM match\n");
-    struct sr_arpentry *arp_entry = sr_arpcache_lookup(&sr->cache, ip_hdr->ip_dst);
+    struct sr_arpentry *arp_entry = sr_arpcache_lookup(&sr->cache, lpm_match_rt->gw.s_addr);
     if (arp_entry != NULL) {
       printf("ARP cache hit\n");
       /* if hit, change ethernet src/dst, send packet */
@@ -361,7 +405,7 @@ void forward_ip(sr_ip_hdr_t *ip_hdr, struct sr_instance *sr, uint8_t *packet, un
     } else {
       /* else, send arp request(handle_arprequest)*/
       printf("ARP cache miss, resend\n");
-      struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_dst, packet, len, sr_rt_inf->name);
+      struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, new_ip_hdr->ip_src, packet, len, sr_rt_inf->name);
       handle_arpreq(req, sr);
     }
   } else {
