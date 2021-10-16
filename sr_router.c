@@ -277,7 +277,7 @@ void sr_handle_ip_packet(struct sr_instance* sr,
     }
     /* if match, check arp cache*/
     if (lpm_match_rt) {
-      printf("LPM match\n");
+      printf("LPM match-not for me\n");
       struct sr_arpentry *arp_entry = sr_arpcache_lookup(&sr->cache, lpm_match_rt->gw.s_addr);
       if (arp_entry != NULL) {
         printf("ARP cache hit\n");
@@ -297,7 +297,7 @@ void sr_handle_ip_packet(struct sr_instance* sr,
         ip_hdr->ip_sum = 0;
         uint16_t new_ip_sum = cksum(ip_hdr, sizeof(sr_ip_hdr_t));
         ip_hdr->ip_sum = new_ip_sum;
-        printf("ARP cache miss, resend\n");
+        printf("ARP cache miss\n");
         struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_dst, packet, len, sr_rt_if->name);
         handle_arpreq(req, sr);
       }
