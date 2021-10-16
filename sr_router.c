@@ -373,7 +373,7 @@ void handle_icmp_message(uint8_t icmp_type, uint8_t icmp_code, struct sr_instanc
   free(icmp_pkt);
 }
 
-/* helper function: forwarding ip that is not towards the router's interfaces (after ip header construction) */
+/* helper function: forwarding ip that is not towards the router's interfaces (after ip header) */
 void forward_new_ip(sr_ip_hdr_t *new_ip_hdr, struct sr_instance *sr, uint8_t *packet, unsigned int len, struct sr_if* sr_rt_inf, sr_ethernet_hdr_t *ether_hdr) {
   /* check routing table and perform LPM*/
   /* get addr in routing table */
@@ -382,7 +382,8 @@ void forward_new_ip(sr_ip_hdr_t *new_ip_hdr, struct sr_instance *sr, uint8_t *pa
   struct sr_rt* lpm_match_rt;
   /* if the prefix matches the destination's, it's a match */
   while (curr_rt) {
-    if ((new_ip_hdr->ip_src & curr_rt->mask.s_addr) == (curr_rt->dest.s_addr & curr_rt->mask.s_addr)) {
+    /* Check if the incoming ip(dst of new ip header) matches the routing table ip, and find LPM router entry */
+    if ((new_ip_hdr->ip_dst & curr_rt->mask.s_addr) == (curr_rt->dest.s_addr & curr_rt->mask.s_addr)) {
       if (len < curr_rt->mask.s_addr) {
         len = curr_rt->mask.s_addr;
         lpm_match_rt = curr_rt;
@@ -405,7 +406,7 @@ void forward_new_ip(sr_ip_hdr_t *new_ip_hdr, struct sr_instance *sr, uint8_t *pa
     } else {
       /* else, send arp request(handle_arprequest)*/
       printf("ARP cache miss, resend\n");
-      struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, new_ip_hdr->ip_src, packet, len, sr_rt_inf->name);
+      struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, new_ip_hdr->ip_dst, packet, len, sr_rt_inf->name);
       handle_arpreq(req, sr);
     }
   } else {
