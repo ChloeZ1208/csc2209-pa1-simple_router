@@ -383,7 +383,7 @@ void forward_new_ip(sr_ip_hdr_t *new_ip_hdr, struct sr_instance *sr, uint8_t *pa
   /* if the prefix matches the destination's, it's a match */
   while (curr_rt) {
     /* Check if the incoming ip(dst of new ip header) matches the routing table ip, and find LPM router entry */
-    if ((new_ip_hdr->ip_dst & curr_rt->mask.s_addr) == (curr_rt->dest.s_addr & curr_rt->mask.s_addr)) {
+    if ((new_ip_hdr->ip_src & curr_rt->mask.s_addr) == (curr_rt->dest.s_addr & curr_rt->mask.s_addr)) {
       if (len < curr_rt->mask.s_addr) {
         len = curr_rt->mask.s_addr;
         lpm_match_rt = curr_rt;
@@ -406,13 +406,13 @@ void forward_new_ip(sr_ip_hdr_t *new_ip_hdr, struct sr_instance *sr, uint8_t *pa
     } else {
       /* else, send arp request(handle_arprequest)*/
       printf("ARP cache miss, resend\n");
-      struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, new_ip_hdr->ip_dst, packet, len, sr_rt_inf->name);
+      struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, new_ip_hdr->ip_src, packet, len, sr_rt_inf->name);
       handle_arpreq(req, sr);
     }
   } else {
     /* else, send icmp net unreachable(type3 code0)*/
     printf("ICMP net unreachable!");
-    handle_icmp_message(3, 0, sr, packet, sr_rt_inf, len);
+    /*handle_icmp_message(3, 0, sr, packet, sr_rt_inf, len);*/
   }
 }
 
