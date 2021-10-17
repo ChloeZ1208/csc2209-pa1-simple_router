@@ -331,7 +331,7 @@ void sr_handle_ip_packet(struct sr_instance* sr,
         /* check arp cache */
         struct sr_arpentry *arp_entry = sr_arpcache_lookup(&sr->cache, lpm_match_rt->gw.s_addr);
         struct sr_if *lpm_inf = sr_get_interface(sr, lpm_match_rt->interface);
-        if (arp_entry) {
+        if (arp_entry != NULL) {
           printf("ARP cache hit\n");
           /* if hit, change ethernet src/dst, send packet to next frame */
           sr_send_packet(sr, icmp_t3_pkt, sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t), lpm_inf->name);
@@ -364,7 +364,7 @@ void sr_handle_ip_packet(struct sr_instance* sr,
 
         /* check arp cache*/
         struct sr_arpentry *arp_entry = sr_arpcache_lookup(&sr->cache, ip_hdr->ip_src);
-        if (arp_entry) {
+        if (arp_entry != NULL) {
           printf("ARP cache hit\n");
           /* if hit, change ethernet src/dst, send packet to next frame */
           sr_send_packet(sr, icmp_t3_pkt, sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t), sr_rt_if->name);
@@ -449,7 +449,7 @@ void sr_handle_ip_packet(struct sr_instance* sr,
           /* construct icmp header */
           sr_icmp_t3_hdr_t *new_icmp_t3_hdr = (sr_icmp_t3_hdr_t *)(icmp_t3_pkt + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
           construct_icmp_hdr(3, 0, new_ip_hdr, new_icmp_t3_hdr);
-          if (arp_entry) {
+          if (arp_entry != NULL) {
             printf("ARP cache hit\n");
             /* if hit, change ethernet src/dst, send packet to next frame */
             sr_send_packet(sr, icmp_t3_pkt, sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t), lpm_inf->name);
