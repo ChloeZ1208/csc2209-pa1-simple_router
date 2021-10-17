@@ -226,33 +226,6 @@ void sr_handle_ip_packet(struct sr_instance* sr,
   /* get the destination interface */
   struct sr_if* sr_dst_if = (struct sr_if*) sr_get_dst_inf(sr, ip_hdr->ip_dst);
 
-	/* ttl check */
-	if (ip_hdr->ip_ttl <= 1) {
-		printf("ICMP time exceeded!\n");
-		/* send icmp time exceeded messege */
-		uint8_t *icmp_t3_pkt = (uint8_t *)malloc(sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t));
-		construct_ether_hdr(ether_hdr, (sr_ethernet_hdr_t *)icmp_t3_pkt, sr_rt_if, ethertype_ip);
-		/* construct ip header */
-		sr_ip_hdr_t *new_ip_hdr = (sr_ip_hdr_t *)(icmp_t3_pkt + sizeof(sr_ethernet_hdr_t));
-		construct_ip_hdr(new_ip_hdr, ip_hdr, sr_rt_if);
-		/* construct icmp header */
-		sr_icmp_t3_hdr_t *new_icmp_t3_hdr = (sr_icmp_t3_hdr_t *)(icmp_t3_pkt + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
-		construct_icmp_hdr(11, 0, new_ip_hdr, new_icmp_t3_hdr);
-
-		/* check arp cache*/
-		struct sr_arpentry *arp_entry = sr_arpcache_lookup(&sr->cache, ip_hdr->ip_src);
-		if (arp_entry != NULL) {
-			printf("ARP cache hit\n");
-			/* if hit, change ethernet src/dst, send packet to next frame */
-			sr_send_packet(sr, icmp_t3_pkt, sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t), sr_rt_if->name);
-			free(icmp_t3_pkt);
-		} else {
-			/* no hit, cache it to the queue and send arp request(handle_arprequest)*/
-			struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_src, icmp_t3_pkt, sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t), sr_rt_if->name);
-			handle_arpreq(req, sr);
-		}
-	}
-
   if (sr_dst_if) {
     /* if the ip packet is destined towards the router interfaces */
     if (ip_hdr->ip_p == ip_protocol_icmp) {
@@ -328,7 +301,7 @@ void sr_handle_ip_packet(struct sr_instance* sr,
       } else {
         printf("Not icmp echo request\n");
       }
-    } else {
+    } else if (ip_hdr->ip_p == IPPROTO_TCP || ip_hdr->ip_p == IPPROTO_UDP) {
       printf("TCP/UDP messege\n");
       /* construct icmp port unreachable */
       struct sr_rt* curr_rt = sr->routing_table; 
@@ -374,15 +347,45 @@ void sr_handle_ip_packet(struct sr_instance* sr,
           /* TODO: else, send icmp net unreachable(type3 code0)*/
           printf("LPM failed!");
       }
-    }
+    } else {
+			fprintf(stderr, "Packet discard: Invalid ip packet type!");
+		}
     /* if the ip packet is NOT destined towards the router interfaces*/
   } else {
+		/* ttl check */
+		if (ip_hdr->ip_ttl <= 1) {
+			printf("ICMP time exceeded!\n");
+			/* send icmp time exceeded messege */
+			uint8_t *icmp_t3_pkt = (uint8_t *)malloc(sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t));
+			construct_ether_hdr(ether_hdr, (sr_ethernet_hdr_t *)icmp_t3_pkt, sr_rt_if, ethertype_ip);
+			/* construct ip header */
+			sr_ip_hdr_t *new_ip_hdr = (sr_ip_hdr_t *)(icmp_t3_pkt + sizeof(sr_ethernet_hdr_t));
+			construct_ip_hdr(new_ip_hdr, ip_hdr, sr_rt_if);
+			/* construct icmp header */
+			sr_icmp_t3_hdr_t *new_icmp_t3_hdr = (sr_icmp_t3_hdr_t *)(icmp_t3_pkt + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
+			construct_icmp_hdr(11, 0, new_ip_hdr, new_icmp_t3_hdr);
+
+			/* check arp cache*/
+			struct sr_arpentry *arp_entry = sr_arpcache_lookup(&sr->cache, ip_hdr->ip_src);
+			if (arp_entry != NULL) {
+				printf("ARP cache hit\n");
+				/* if hit, change ethernet src/dst, send packet to next frame */
+				sr_send_packet(sr, icmp_t3_pkt, sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t), sr_rt_if->name);
+				free(icmp_t3_pkt);
+			} else {
+				/* no hit, cache it to the queue and send arp request(handle_arprequest)*/
+				struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_src, icmp_t3_pkt, sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t), sr_rt_if->name);
+				handle_arpreq(req, sr);
+			}
+		}
+
 		/* decrement ttl */
 		ip_hdr->ip_ttl--;
 
 		/* re-caculate checksum */
 		ip_hdr->ip_sum = 0; /* re-calculate the checksum */
-		ip_hdr->ip_sum = cksum(ip_hdr, sizeof(sr_ip_hdr_t));
+		uint16_t new_cksum = sizeof(sr_ip_hdr_t);
+		ip_hdr->ip_sum = cksum(ip_hdr, new_cksum);
 
 		/* check routing table and perform LPM*/
 		/* get addr in routing table */
