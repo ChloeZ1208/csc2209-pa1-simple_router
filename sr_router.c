@@ -380,7 +380,7 @@ void sr_handle_ip_packet(struct sr_instance* sr,
 		/* get addr in routing table */
 		struct sr_rt* curr_rt = sr->routing_table; 
 		/* check longest prefix match */
-		struct sr_rt* lpm_match_rt;
+		struct sr_rt* lpm_match_rt = NULL;
 		/* if the prefix matches the destination's, it's a match */
 		uint32_t max_len = 0;
 		while (curr_rt) {
