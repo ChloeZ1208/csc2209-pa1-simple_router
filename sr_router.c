@@ -496,7 +496,7 @@ void construct_icmp_hdr(uint8_t icmp_type, uint8_t icmp_code, sr_ip_hdr_t *ip_hd
   icmp_t3_hdr->unused = 0;
 	memcpy(icmp_t3_hdr->data, ip_hdr, sizeof(sr_ip_hdr_t));
 	icmp_t3_hdr->icmp_sum = 0;
-	uint16_t new_cksum = cksum(icmp_t3_hdr, sizeof(sr_icmp_t3_hdr_t))
+	uint16_t new_cksum = cksum(icmp_t3_hdr, sizeof(sr_icmp_t3_hdr_t));
   icmp_t3_hdr->icmp_sum = new_cksum;
 }
 
