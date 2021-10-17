@@ -117,7 +117,6 @@ void sr_handle_arp_packet(struct sr_instance* sr,
   sr_arp_hdr_t *arp_hdr =  (sr_arp_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t));
   /* get incoming ethernet header */
   sr_ethernet_hdr_t *ether_hdr = (sr_ethernet_hdr_t *)packet;
-  print_hdr_arp(packet + sizeof(sr_ethernet_hdr_t));
 
   /* tell if the target of the packet is among the router's address
   * tell if it's arp request or reply
@@ -299,6 +298,9 @@ void sr_handle_ip_packet(struct sr_instance* sr,
             /* TODO: else, send icmp net unreachable(type3 code0)*/
             printf("ICMP net unreachable!");
         }
+      } else {
+        printf("Not icmp echo request\n");
+      }
     } else {
       printf("TCP/UDP messege\n");
       /* construct icmp port unreachable */
@@ -345,125 +347,124 @@ void sr_handle_ip_packet(struct sr_instance* sr,
           /* TODO: else, send icmp net unreachable(type3 code0)*/
           printf("LPM failed!");
       }
-
     }
     /* if the ip packet is NOT destined towards the router interfaces*/
-    } else {
-      /* ttl check */
-      if (ip_hdr->ip_ttl <= 1) {
-        printf("ICMP time exceeded!\n");
-        /* send icmp time exceeded messege */
-        uint8_t *icmp_t3_pkt = (uint8_t *)malloc(sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t));
-        construct_ether_hdr(ether_hdr, (sr_ethernet_hdr_t *)icmp_t3_pkt, sr_rt_if, ethertype_ip);
-        /* construct ip header */
-        sr_ip_hdr_t *new_ip_hdr = (sr_ip_hdr_t *)(icmp_t3_pkt + sizeof(sr_ethernet_hdr_t));
-        construct_ip_hdr(new_ip_hdr, ip_hdr, sr_rt_if);
-        /* construct icmp header */
-        sr_icmp_t3_hdr_t *new_icmp_t3_hdr = (sr_icmp_t3_hdr_t *)(icmp_t3_pkt + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
-        construct_icmp_hdr(11, 0, new_ip_hdr, new_icmp_t3_hdr);
+  } else {
+    /* ttl check */
+    if (ip_hdr->ip_ttl <= 1) {
+      printf("ICMP time exceeded!\n");
+      /* send icmp time exceeded messege */
+			uint8_t *icmp_t3_pkt = (uint8_t *)malloc(sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t));
+			construct_ether_hdr(ether_hdr, (sr_ethernet_hdr_t *)icmp_t3_pkt, sr_rt_if, ethertype_ip);
+			/* construct ip header */
+			sr_ip_hdr_t *new_ip_hdr = (sr_ip_hdr_t *)(icmp_t3_pkt + sizeof(sr_ethernet_hdr_t));
+			construct_ip_hdr(new_ip_hdr, ip_hdr, sr_rt_if);
+			/* construct icmp header */
+			sr_icmp_t3_hdr_t *new_icmp_t3_hdr = (sr_icmp_t3_hdr_t *)(icmp_t3_pkt + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
+			construct_icmp_hdr(11, 0, new_ip_hdr, new_icmp_t3_hdr);
 
-        /* check arp cache*/
-        struct sr_arpentry *arp_entry = sr_arpcache_lookup(&sr->cache, ip_hdr->ip_src);
-        if (arp_entry != NULL) {
-          printf("ARP cache hit\n");
-          /* if hit, change ethernet src/dst, send packet to next frame */
-          sr_send_packet(sr, icmp_t3_pkt, sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t), sr_rt_if->name);
-          free(icmp_t3_pkt);
-        }   else {
-          /* no hit, cache it to the queue and send arp request(handle_arprequest)*/
-          struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_src, icmp_t3_pkt, sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t), sr_rt_if->name);
-          handle_arpreq(req, sr);
-        }
-      }
+			/* check arp cache*/
+			struct sr_arpentry *arp_entry = sr_arpcache_lookup(&sr->cache, ip_hdr->ip_src);
+			if (arp_entry != NULL) {
+				printf("ARP cache hit\n");
+				/* if hit, change ethernet src/dst, send packet to next frame */
+				sr_send_packet(sr, icmp_t3_pkt, sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t), sr_rt_if->name);
+				free(icmp_t3_pkt);
+			} else {
+				/* no hit, cache it to the queue and send arp request(handle_arprequest)*/
+				struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_src, icmp_t3_pkt, sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t), sr_rt_if->name);
+				handle_arpreq(req, sr);
+			}
+		}
+		/* decrement ttl */
+		ip_hdr->ip_ttl--;
 
-      /* decrement ttl */
-      ip_hdr->ip_ttl--;
+		/* re-caculate checksum */
+		ip_hdr->ip_sum = 0; /* re-calculate the checksum */
+		ip_hdr->ip_sum = cksum(ip_hdr, sizeof(sr_ip_hdr_t));
 
-      /* re-caculate checksum */
-      ip_hdr->ip_sum = 0; /* re-calculate the checksum */
-      ip_hdr->ip_sum = cksum(ip_hdr, sizeof(sr_ip_hdr_t));
+		/* check routing table and perform LPM*/
+		/* get addr in routing table */
+		struct sr_rt* curr_rt = sr->routing_table; 
+		/* check longest prefix match */
+		struct sr_rt* lpm_match_rt;
+		/* if the prefix matches the destination's, it's a match */
+		uint32_t max_len = 0;
+		while (curr_rt) {
+			if ((ip_hdr->ip_dst & curr_rt->mask.s_addr) == (curr_rt->dest.s_addr & curr_rt->mask.s_addr)) {
+				if (max_len < curr_rt->mask.s_addr) {
+					max_len = curr_rt->mask.s_addr;
+					lpm_match_rt = curr_rt;
+				}
+			}
+			curr_rt = curr_rt->next;
+		}
+		/* if match, check arp cache*/
+		if (lpm_match_rt) {
+			printf("LPM match-not for me\n");
+			struct sr_arpentry *arp_entry = sr_arpcache_lookup(&sr->cache, lpm_match_rt->gw.s_addr);
+			struct sr_if *lpm_inf = sr_get_interface(sr, lpm_match_rt->interface);
+			if (arp_entry != NULL) {
+				printf("ARP cache hit\n");
+				/* if hit, change ethernet src/dst, send packet to next frame */
+				memcpy(ether_hdr->ether_dhost, arp_entry->mac, ETHER_ADDR_LEN);
+				memcpy(ether_hdr->ether_shost, lpm_inf->addr, ETHER_ADDR_LEN);
+				sr_send_packet(sr, packet, len, lpm_inf->name);
+				print_hdr_ip((uint8_t*)ip_hdr);
+				printf("Send frame to next hop\n");
+				free(arp_entry);
+			} else {
+				/* no hit, send arp request(handle_arprequest)*/
+				printf("ARP cache miss\n");
+				struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_dst, packet, len, lpm_inf->name);
+				handle_arpreq(req, sr);
+			}
+		} else {
+			/* else, send icmp net unreachable(type3 code0)*/
+			printf("ICMP net unreachable!");
+			struct sr_rt* curr_rt = sr->routing_table; 
+			/* check longest prefix match */
+			struct sr_rt* lpm_match_rt;
+			/* if the prefix matches the destination's, it's a match */
+			uint32_t max_len = 0;
+			while (curr_rt) {
+				if ((ip_hdr->ip_src & curr_rt->mask.s_addr) == (curr_rt->dest.s_addr & curr_rt->mask.s_addr)) {
+					if (max_len < curr_rt->mask.s_addr) {
+						max_len = curr_rt->mask.s_addr;
+						lpm_match_rt = curr_rt;
+					}
+				}
+				curr_rt = curr_rt->next;
+			} 
+			/* if match, check arp cache*/
+			if (lpm_match_rt) {
+				printf("LPM match-net unreachable\n");
+				struct sr_arpentry *arp_entry = sr_arpcache_lookup(&sr->cache, lpm_match_rt->gw.s_addr);
+				struct sr_if *lpm_inf = sr_get_interface(sr, lpm_match_rt->interface);
 
-      /* check routing table and perform LPM*/
-      /* get addr in routing table */
-      struct sr_rt* curr_rt = sr->routing_table; 
-      /* check longest prefix match */
-      struct sr_rt* lpm_match_rt;
-      /* if the prefix matches the destination's, it's a match */
-      uint32_t max_len = 0;
-      while (curr_rt) {
-        if ((ip_hdr->ip_dst & curr_rt->mask.s_addr) == (curr_rt->dest.s_addr & curr_rt->mask.s_addr)) {
-          if (max_len < curr_rt->mask.s_addr) {
-            max_len = curr_rt->mask.s_addr;
-            lpm_match_rt = curr_rt;
-          }
-        }
-        curr_rt = curr_rt->next;
-      }
-      /* if match, check arp cache*/
-      if (lpm_match_rt) {
-        printf("LPM match-not for me\n");
-        struct sr_arpentry *arp_entry = sr_arpcache_lookup(&sr->cache, lpm_match_rt->gw.s_addr);
-        struct sr_if *lpm_inf = sr_get_interface(sr, lpm_match_rt->interface);
-        if (arp_entry != NULL) {
-          printf("ARP cache hit\n");
-          /* if hit, change ethernet src/dst, send packet to next frame */
-          memcpy(ether_hdr->ether_dhost, arp_entry->mac, ETHER_ADDR_LEN);
-          memcpy(ether_hdr->ether_shost, lpm_inf->addr, ETHER_ADDR_LEN);
-          sr_send_packet(sr, packet, len, lpm_inf->name);
-          printf("Send frame to next hop\n");
-          free(arp_entry);
-        } else {
-          /* no hit, send arp request(handle_arprequest)*/
-          printf("ARP cache miss\n");
-          struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_dst, packet, len, lpm_inf->name);
-          handle_arpreq(req, sr);
-        }
-      } else {
-        /* else, send icmp net unreachable(type3 code0)*/
-        printf("ICMP net unreachable!");
-        struct sr_rt* curr_rt = sr->routing_table; 
-        /* check longest prefix match */
-        struct sr_rt* lpm_match_rt;
-        /* if the prefix matches the destination's, it's a match */
-        uint32_t max_len = 0;
-        while (curr_rt) {
-          if ((ip_hdr->ip_src & curr_rt->mask.s_addr) == (curr_rt->dest.s_addr & curr_rt->mask.s_addr)) {
-            if (max_len < curr_rt->mask.s_addr) {
-              max_len = curr_rt->mask.s_addr;
-              lpm_match_rt = curr_rt;
-            }
-          }
-          curr_rt = curr_rt->next;
-        } 
-        /* if match, check arp cache*/
-        if (lpm_match_rt) {
-          printf("LPM match-net unreachable\n");
-          struct sr_arpentry *arp_entry = sr_arpcache_lookup(&sr->cache, lpm_match_rt->gw.s_addr);
-          struct sr_if *lpm_inf = sr_get_interface(sr, lpm_match_rt->interface);
-
-          uint8_t *icmp_t3_pkt = (uint8_t *)malloc(sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t));
-          construct_ether_hdr(ether_hdr, (sr_ethernet_hdr_t *)icmp_t3_pkt, lpm_inf, ethertype_ip);
-          /* construct ip header */
-          sr_ip_hdr_t *new_ip_hdr = (sr_ip_hdr_t *)(icmp_t3_pkt + sizeof(sr_ethernet_hdr_t));
-          construct_ip_hdr(new_ip_hdr, ip_hdr, lpm_inf);
-          /* construct icmp header */
-          sr_icmp_t3_hdr_t *new_icmp_t3_hdr = (sr_icmp_t3_hdr_t *)(icmp_t3_pkt + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
-          construct_icmp_hdr(3, 0, new_ip_hdr, new_icmp_t3_hdr);
-          if (arp_entry != NULL) {
-            printf("ARP cache hit\n");
-            /* if hit, change ethernet src/dst, send packet to next frame */
-            sr_send_packet(sr, icmp_t3_pkt, sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t), lpm_inf->name);
-            free(icmp_t3_pkt);
-          } else {
-            /* no hit, cache it to the queue and send arp request(handle_arprequest)*/
-            struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_src, icmp_t3_pkt, sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t), lpm_inf->name);
-            handle_arpreq(req, sr);
-          }
-        } else {
-          printf("LPM failed!");
-        }
-      }
-    }
+				uint8_t *icmp_t3_pkt = (uint8_t *)malloc(sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t));
+				construct_ether_hdr(ether_hdr, (sr_ethernet_hdr_t *)icmp_t3_pkt, lpm_inf, ethertype_ip);
+				/* construct ip header */
+				sr_ip_hdr_t *new_ip_hdr = (sr_ip_hdr_t *)(icmp_t3_pkt + sizeof(sr_ethernet_hdr_t));
+				construct_ip_hdr(new_ip_hdr, ip_hdr, lpm_inf);
+				/* construct icmp header */
+				sr_icmp_t3_hdr_t *new_icmp_t3_hdr = (sr_icmp_t3_hdr_t *)(icmp_t3_pkt + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
+				construct_icmp_hdr(3, 0, new_ip_hdr, new_icmp_t3_hdr);
+				if (arp_entry != NULL) {
+					printf("ARP cache hit\n");
+					/* if hit, change ethernet src/dst, send packet to next frame */
+					sr_send_packet(sr, icmp_t3_pkt, sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t), lpm_inf->name);
+					free(icmp_t3_pkt);
+				} else {
+					/* no hit, cache it to the queue and send arp request(handle_arprequest)*/
+					printf("ARP cache miss\n");
+					struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_src, icmp_t3_pkt, sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t), lpm_inf->name);
+					handle_arpreq(req, sr);
+				}
+			} else {
+				printf("LPM failed!");
+			}
+		}
   }
 }
 
