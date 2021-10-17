@@ -289,16 +289,16 @@ void sr_handle_ip_packet(struct sr_instance* sr,
             /* construct ethernet header */
             construct_ether_hdr(ether_hdr, ether_hdr, lpm_inf);/* if hit, send it from lpm matched rtable */
             /* construct ip header */
-            ip_hdr->ip_sum = 0;
             ip_hdr->ip_ttl = 64;
             uint32_t temp = ip_hdr->ip_src;
             ip_hdr->ip_src = ip_hdr->ip_dst;
             ip_hdr->ip_dst = temp;
+						ip_hdr->ip_sum = 0;
             ip_hdr->ip_sum = cksum(ip_hdr, sizeof(sr_ip_hdr_t));
             /* construct icmp header */
-            icmp_hdr->icmp_sum = 0;
             icmp_hdr->icmp_code = 0;
             icmp_hdr->icmp_type = 0;
+						icmp_hdr->icmp_sum = 0;
             icmp_hdr->icmp_sum = cksum(icmp_hdr, len - sizeof(sr_ethernet_hdr_t) - sizeof(sr_ip_hdr_t));
             sr_send_packet(sr, packet, len, lpm_inf->name); /* if hit, send it from lpm matched rtable */
           } else {
@@ -307,16 +307,16 @@ void sr_handle_ip_packet(struct sr_instance* sr,
             /* construct ethernet header */
             construct_ether_hdr(ether_hdr, ether_hdr, sr_rt_if); /* if not hit, send it from connected interface*/
             /* construct ip header */
-            ip_hdr->ip_sum = 0;
             ip_hdr->ip_ttl = 64;
             uint32_t temp = ip_hdr->ip_src;
             ip_hdr->ip_src = ip_hdr->ip_dst;
             ip_hdr->ip_dst = temp;
+						ip_hdr->ip_sum = 0;
             ip_hdr->ip_sum = cksum(ip_hdr, sizeof(sr_ip_hdr_t));
             /* construct icmp header */
-            icmp_hdr->icmp_sum = 0;
             icmp_hdr->icmp_code = 0;
             icmp_hdr->icmp_type = 0;
+						icmp_hdr->icmp_sum = 0;
             icmp_hdr->icmp_sum = cksum(icmp_hdr, len - sizeof(sr_ethernet_hdr_t) - sizeof(sr_ip_hdr_t));
             struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_dst, packet, len, lpm_inf->name);
             handle_arpreq(req, sr);
@@ -371,7 +371,6 @@ void sr_handle_ip_packet(struct sr_instance* sr,
           handle_arpreq(req, sr);
         }
       } else {
-          /* TODO: else, send icmp net unreachable(type3 code0)*/
           printf("LPM failed!");
       }
     }
@@ -401,9 +400,9 @@ void sr_handle_ip_packet(struct sr_instance* sr,
 			/* decrement ttl */
 			ip_hdr->ip_ttl--;
 			/* re-caculate checksum */
-			ip_hdr->ip_sum = 0; /* re-calculate the checksum */
-			uint16_t new_cksum = sizeof(sr_ip_hdr_t);
-			ip_hdr->ip_sum = cksum(ip_hdr, new_cksum);
+			ip_hdr->ip_sum = 0; 
+			uint16_t new_cksum = cksum(ip_hdr, sizeof(sr_ip_hdr_t));
+      ip_hdr->ip_sum = new_cksum;
 
 			if (arp_entry != NULL) {
 				printf("ARP cache hit\n");
@@ -482,21 +481,23 @@ void construct_ip_hdr(sr_ip_hdr_t *new_ip_hdr, sr_ip_hdr_t *ip_hdr, struct sr_if
   new_ip_hdr->ip_len = htons(56);
   new_ip_hdr->ip_dst = ip_hdr->ip_src;
   new_ip_hdr->ip_p = ip_protocol_icmp;
-  new_ip_hdr->ip_sum = 0;
   new_ip_hdr->ip_ttl = 64;
   new_ip_hdr->ip_tos = ip_hdr->ip_tos;
-  new_ip_hdr->ip_sum = cksum(new_ip_hdr, sizeof(sr_ip_hdr_t));
+	new_ip_hdr->ip_sum = 0;
+  uint16_t new_cksum = cksum(new_ip_hdr, sizeof(sr_ip_hdr_t));
+	new_ip_hdr->ip_sum = new_cksum;;
 }
 
 /* helper function: construct icmp type 3 + type 11 header */
 void construct_icmp_hdr(uint8_t icmp_type, uint8_t icmp_code, sr_ip_hdr_t *ip_hdr, sr_icmp_t3_hdr_t *icmp_t3_hdr) {
-  memcpy(icmp_t3_hdr->data, ip_hdr, sizeof(sr_ip_hdr_t));
   icmp_t3_hdr->icmp_code = icmp_code;
   icmp_t3_hdr->icmp_type = icmp_type;
-  icmp_t3_hdr->icmp_sum = 0;
   icmp_t3_hdr->next_mtu = 0;
   icmp_t3_hdr->unused = 0;
-  icmp_t3_hdr->icmp_sum = cksum(icmp_t3_hdr, sizeof(sr_icmp_t3_hdr_t));
+	memcpy(icmp_t3_hdr->data, ip_hdr, sizeof(sr_ip_hdr_t));
+	icmp_t3_hdr->icmp_sum = 0;
+	uint16_t new_cksum = cksum(icmp_t3_hdr, sizeof(sr_icmp_t3_hdr_t))
+  icmp_t3_hdr->icmp_sum = new_cksum;
 }
 
 /* helper function: get destination ip interface */
