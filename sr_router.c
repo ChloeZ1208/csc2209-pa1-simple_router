@@ -397,14 +397,14 @@ void sr_handle_ip_packet(struct sr_instance* sr,
 			printf("LPM match-not for me\n");
 			struct sr_arpentry *arp_entry = sr_arpcache_lookup(&sr->cache, lpm_match_rt->gw.s_addr);
 			struct sr_if *lpm_inf = sr_get_interface(sr, lpm_match_rt->interface);
-			/* decrement ttl */
-			ip_hdr->ip_ttl--;
-			/* re-caculate checksum */
-			ip_hdr->ip_sum = 0; 
-			uint16_t new_cksum = cksum(ip_hdr, sizeof(sr_ip_hdr_t));
-      ip_hdr->ip_sum = new_cksum;
 
 			if (arp_entry != NULL) {
+				/* decrement ttl */
+				ip_hdr->ip_ttl--;
+				/* re-caculate checksum */
+				ip_hdr->ip_sum = 0; 
+				uint16_t new_cksum = cksum(ip_hdr, sizeof(sr_ip_hdr_t));
+				ip_hdr->ip_sum = new_cksum;
 				printf("ARP cache hit\n");
 				/* if hit, change ethernet src/dst, send packet to next frame */
 				memcpy(ether_hdr->ether_dhost, arp_entry->mac, ETHER_ADDR_LEN);
@@ -415,6 +415,12 @@ void sr_handle_ip_packet(struct sr_instance* sr,
 				free(arp_entry);
 			} else {
 				/* no hit, send arp request(handle_arprequest)*/
+					/* decrement ttl */
+				ip_hdr->ip_ttl--;
+				/* re-caculate checksum */
+				ip_hdr->ip_sum = 0; 
+				uint16_t new_cksum = cksum(ip_hdr, sizeof(sr_ip_hdr_t));
+      	ip_hdr->ip_sum = new_cksum;
 				printf("ARP cache miss\n");
 				struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_dst, packet, len, lpm_inf->name);
 				handle_arpreq(req, sr);
