@@ -473,7 +473,7 @@ void sr_handle_ip_packet(struct sr_instance* sr,
 void construct_ether_hdr(sr_ethernet_hdr_t *old_ether_hdr, sr_ethernet_hdr_t *new_ether_hdr, struct sr_if *inf) {
   memcpy(new_ether_hdr->ether_dhost, old_ether_hdr->ether_shost, ETHER_ADDR_LEN);
   memcpy(new_ether_hdr->ether_shost, inf->addr, ETHER_ADDR_LEN);
-  new_ether_hdr->ether_type = ether_hdr->ether_type;
+  new_ether_hdr->ether_type = old_ether_hdr->ether_type;
 }
 
 /* construct all the ip header */
