@@ -480,6 +480,8 @@ void construct_ip_hdr(sr_ip_hdr_t *new_ip_hdr, sr_ip_hdr_t *ip_hdr, struct sr_if
   new_ip_hdr->ip_src = sr_inf->ip;
   new_ip_hdr->ip_len = htons(56);
   new_ip_hdr->ip_dst = ip_hdr->ip_src;
+	new_ip_hdr->ip_hl = ip_hdr->ip_hl;
+	new_ip_hdr->ip_v = ip_hdr->ip_v;
   new_ip_hdr->ip_p = ip_protocol_icmp;
   new_ip_hdr->ip_ttl = 64;
   new_ip_hdr->ip_tos = ip_hdr->ip_tos;
