@@ -138,7 +138,7 @@ void sr_handle_arp_packet(struct sr_instance* sr,
 
       /* construct ethernet header */
       sr_ethernet_hdr_t *ether_arp_reply_hdr = (sr_ethernet_hdr_t *)arp_reply;
-      construct_ether_hdr(ether_hdr, ether_arp_reply_hdr, sr_arp_if, ethertype_arp);
+      construct_ether_hdr(ether_hdr, ether_arp_reply_hdr, sr_arp_if);
 
       /* construct arp reply header */
       sr_arp_hdr_t *arp_reply_hdr = (sr_arp_hdr_t *)(arp_reply + sizeof(sr_ethernet_hdr_t));
@@ -231,7 +231,7 @@ void sr_handle_ip_packet(struct sr_instance* sr,
 		printf("ICMP time exceeded!\n");
 		/* send icmp time exceeded messege */
 		uint8_t *icmp_t3_pkt = (uint8_t *)malloc(sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t));
-		construct_ether_hdr(ether_hdr, (sr_ethernet_hdr_t *)icmp_t3_pkt, sr_rt_if, ethertype_ip);
+		construct_ether_hdr(ether_hdr, (sr_ethernet_hdr_t *)icmp_t3_pkt, sr_rt_if);
 		/* construct ip header */
 		sr_ip_hdr_t *new_ip_hdr = (sr_ip_hdr_t *)(icmp_t3_pkt + sizeof(sr_ethernet_hdr_t));
 		construct_ip_hdr(new_ip_hdr, ip_hdr, sr_rt_if);
@@ -287,7 +287,7 @@ void sr_handle_ip_packet(struct sr_instance* sr,
             printf("ARP cache hit\n");
             /* if hit, change ethernet/ip/ src/dst & icmp checksum, send packet to next frame */
             /* construct ethernet header */
-            construct_ether_hdr(ether_hdr, ether_hdr, lpm_inf, ethertype_ip);/* if hit, send it from lpm matched rtable */
+            construct_ether_hdr(ether_hdr, ether_hdr, lpm_inf);/* if hit, send it from lpm matched rtable */
             /* construct ip header */
             ip_hdr->ip_sum = 0;
             ip_hdr->ip_ttl = 64;
@@ -305,7 +305,7 @@ void sr_handle_ip_packet(struct sr_instance* sr,
             /* no hit, cache it to the queue and send arp request(handle_arprequest)*/
             printf("ARP cache miss\n");
             /* construct ethernet header */
-            construct_ether_hdr(ether_hdr, ether_hdr, sr_rt_if, ethertype_ip); /* if not hit, send it from connected interface*/
+            construct_ether_hdr(ether_hdr, ether_hdr, sr_rt_if); /* if not hit, send it from connected interface*/
             /* construct ip header */
             ip_hdr->ip_sum = 0;
             ip_hdr->ip_ttl = 64;
@@ -328,7 +328,7 @@ void sr_handle_ip_packet(struct sr_instance* sr,
       } else {
         printf("Not icmp echo request\n");
       }
-    } else if (ip_hdr->ip_p == IPPROTO_TCP || ip_hdr->ip_p == IPPROTO_UDP) {
+    } else {
       printf("TCP/UDP messege\n");
       /* construct icmp port unreachable */
       struct sr_rt* curr_rt = sr->routing_table; 
@@ -349,7 +349,7 @@ void sr_handle_ip_packet(struct sr_instance* sr,
         printf("LPM match-tcp/udp\n");
         /* construct icmp port unreachable */
         uint8_t *icmp_t3_pkt = (uint8_t *)malloc(sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t));
-        construct_ether_hdr(ether_hdr, (sr_ethernet_hdr_t *)icmp_t3_pkt, sr_dst_if, ethertype_ip);
+        construct_ether_hdr(ether_hdr, (sr_ethernet_hdr_t *)icmp_t3_pkt, sr_dst_if);
         /* construct ip header */
         sr_ip_hdr_t *new_ip_hdr = (sr_ip_hdr_t *)(icmp_t3_pkt + sizeof(sr_ethernet_hdr_t));
         construct_ip_hdr(new_ip_hdr, ip_hdr, sr_dst_if);
@@ -374,9 +374,7 @@ void sr_handle_ip_packet(struct sr_instance* sr,
           /* TODO: else, send icmp net unreachable(type3 code0)*/
           printf("LPM failed!");
       }
-    } else {
-			fprintf(stderr, "Packet discard: Invalid ip packet type!");
-		}
+    }
     /* if the ip packet is NOT destined towards the router interfaces*/
   } else {
 		/* check routing table and perform LPM*/
@@ -406,7 +404,7 @@ void sr_handle_ip_packet(struct sr_instance* sr,
 			ip_hdr->ip_sum = 0; /* re-calculate the checksum */
 			uint16_t new_cksum = sizeof(sr_ip_hdr_t);
 			ip_hdr->ip_sum = cksum(ip_hdr, new_cksum);
-			
+
 			if (arp_entry != NULL) {
 				printf("ARP cache hit\n");
 				/* if hit, change ethernet src/dst, send packet to next frame */
@@ -446,7 +444,7 @@ void sr_handle_ip_packet(struct sr_instance* sr,
 				struct sr_if *lpm_inf = sr_get_interface(sr, lpm_match_rt->interface);
 
 				uint8_t *icmp_t3_pkt = (uint8_t *)malloc(sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t));
-				construct_ether_hdr(ether_hdr, (sr_ethernet_hdr_t *)icmp_t3_pkt, lpm_inf, ethertype_ip);
+				construct_ether_hdr(ether_hdr, (sr_ethernet_hdr_t *)icmp_t3_pkt, lpm_inf);
 				/* construct ip header */
 				sr_ip_hdr_t *new_ip_hdr = (sr_ip_hdr_t *)(icmp_t3_pkt + sizeof(sr_ethernet_hdr_t));
 				construct_ip_hdr(new_ip_hdr, ip_hdr, lpm_inf);
@@ -472,10 +470,10 @@ void sr_handle_ip_packet(struct sr_instance* sr,
 }
 
 /* helper function: construct ethernet header */
-void construct_ether_hdr(sr_ethernet_hdr_t *old_ether_hdr, sr_ethernet_hdr_t *new_ether_hdr, struct sr_if *inf, enum sr_ethertype type) {
+void construct_ether_hdr(sr_ethernet_hdr_t *old_ether_hdr, sr_ethernet_hdr_t *new_ether_hdr, struct sr_if *inf) {
   memcpy(new_ether_hdr->ether_dhost, old_ether_hdr->ether_shost, ETHER_ADDR_LEN);
   memcpy(new_ether_hdr->ether_shost, inf->addr, ETHER_ADDR_LEN);
-  new_ether_hdr->ether_type = htons(type);
+  new_ether_hdr->ether_type = ether_hdr->ether_type;
 }
 
 /* construct all the ip header */

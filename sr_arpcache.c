@@ -67,7 +67,7 @@ void handle_arpreq(struct sr_arpreq * request, struct sr_instance *sr) {
                 struct sr_arpentry *arp_entry = sr_arpcache_lookup(&sr->cache, lpm_match_rt->gw.s_addr);
                 struct sr_if *lpm_inf = sr_get_interface(sr, lpm_match_rt->interface);
                 uint8_t *icmp_t3_pkt = (uint8_t *)malloc(sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t));
-                construct_ether_hdr(ether_hdr, (sr_ethernet_hdr_t *)icmp_t3_pkt, lpm_inf, ethertype_ip);
+                construct_ether_hdr(ether_hdr, (sr_ethernet_hdr_t *)icmp_t3_pkt, lpm_inf);
                 /* construct ip header */
                 sr_ip_hdr_t *new_ip_hdr = (sr_ip_hdr_t *)(icmp_t3_pkt + sizeof(sr_ethernet_hdr_t));
                 construct_ip_hdr(new_ip_hdr, ip_hdr, lpm_inf);
