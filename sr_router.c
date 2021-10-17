@@ -257,7 +257,7 @@ void sr_handle_ip_packet(struct sr_instance* sr,
           printf("LPM match-icmp\n");
           struct sr_arpentry *arp_entry = sr_arpcache_lookup(&sr->cache, lpm_match_rt->gw.s_addr);
           struct sr_if *lpm_inf = sr_get_interface(sr, lpm_match_rt->interface);
-          if (arp_entry) {
+          if (arp_entry != NULL) {
             printf("ARP cache hit\n");
             /* if hit, change ethernet/ip/ src/dst & icmp checksum, send packet to next frame */
             /* construct ethernet header */
@@ -277,6 +277,7 @@ void sr_handle_ip_packet(struct sr_instance* sr,
             sr_send_packet(sr, packet, len, lpm_inf->name); /* if hit, send it from lpm matched rtable */
           } else {
             /* no hit, cache it to the queue and send arp request(handle_arprequest)*/
+            printf("ARP cache miss\n");
             /* construct ethernet header */
             construct_ether_hdr(ether_hdr, ether_hdr, sr_rt_if, ethertype_ip); /* if not hit, send it from connected interface*/
             /* construct ip header */
@@ -291,7 +292,6 @@ void sr_handle_ip_packet(struct sr_instance* sr,
             icmp_hdr->icmp_code = 0;
             icmp_hdr->icmp_type = 0;
             icmp_hdr->icmp_sum = cksum(icmp_hdr, len - sizeof(sr_ethernet_hdr_t) - sizeof(sr_ip_hdr_t));
-            printf("ARP cache miss\n");
             struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_dst, packet, len, lpm_inf->name);
             handle_arpreq(req, sr);
           }
