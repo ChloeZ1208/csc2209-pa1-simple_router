@@ -73,7 +73,7 @@ void handle_arpreq(struct sr_arpreq * request, struct sr_instance *sr) {
                 construct_ip_hdr(new_ip_hdr, ip_hdr, lpm_inf);
                 /* construct icmp header */
                 sr_icmp_t3_hdr_t *new_icmp_t3_hdr = (sr_icmp_t3_hdr_t *)(icmp_t3_pkt + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
-                construct_icmp_hdr(3, 1, new_ip_hdr, new_icmp_t3_hdr);
+                construct_icmp_hdr(3, 1, ip_hdr, new_icmp_t3_hdr);
                 if (arp_entry) {
                     printf("ARP cache hit\n");
                     /* if hit, change ethernet src/dst, send packet to next frame */
