@@ -69,10 +69,10 @@ void sr_init(struct sr_instance* );
 void sr_handlepacket(struct sr_instance* , uint8_t * , unsigned int , char* );
 void sr_handle_arp_packet(struct sr_instance* , uint8_t * , unsigned int , char* );
 void sr_handle_ip_packet(struct sr_instance* , uint8_t * , unsigned int , char* );
-void construct_ether_hdr(sr_ethernet_hdr_t*, sr_ethernet_hdr_t *, struct sr_if *, enum sr_ethertype );
-void handle_icmp_message(uint8_t , uint8_t , struct sr_instance *, uint8_t *, struct sr_if *, unsigned int );
 struct sr_if *sr_get_dst_inf(struct sr_instance * , uint32_t );
-void forward_new_ip(sr_ip_hdr_t *, struct sr_instance * , uint8_t *, unsigned int , struct sr_if * , sr_ethernet_hdr_t * );
+void construct_ether_hdr(sr_ethernet_hdr_t*, sr_ethernet_hdr_t *, struct sr_if *, enum sr_ethertype);
+void construct_ip_hdr(sr_ip_hdr_t *, sr_ip_hdr_t *, struct sr_if *);
+void construct_icmp_hdr(uint8_t , uint8_t , sr_ip_hdr_t *, sr_icmp_t3_hdr_t *);
 
 /* -- sr_if.c -- */
 void sr_add_interface(struct sr_instance* , const char* );
