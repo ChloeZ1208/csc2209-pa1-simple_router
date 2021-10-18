@@ -35,14 +35,13 @@ void sr_arpcache_sweepreqs(struct sr_instance *sr) {
 void handle_arpreq(struct sr_arpreq * request, struct sr_instance *sr) {
     time_t now = time(0); /*get current time*/
     if (difftime(now, request->sent) >= 1.0) {
-        printf("in arp req?\n");
         if(request->times_sent >= 5) {
             /* send icmp host unreachable type3 code1 */
             struct sr_packet *packets = request->packets;
             while (packets) {
                 struct sr_if *sr_inf = sr_get_interface(sr, packets->iface);
                 sr_ethernet_hdr_t *ether_hdr = (sr_ethernet_hdr_t *)packets->buf;
-                sr_ip_hdr_t *ip_hdr = (sr_ip_hdr_t *) packets->buf + sizeof(sr_ethernet_hdr_t);
+                sr_ip_hdr_t *ip_hdr = (sr_ip_hdr_t *) (packets->buf + sizeof(sr_ethernet_hdr_t));
                 if (sr_inf == NULL) {
                     fprintf(stderr, "Packet discard: Interface not exist!");
                 }
@@ -64,7 +63,6 @@ void handle_arpreq(struct sr_arpreq * request, struct sr_instance *sr) {
                 if (lpm_match_rt == NULL) {
                     fprintf(stderr, "Packet discard: LPM failed!");
                 }
-                struct sr_arpentry *arp_entry = sr_arpcache_lookup(&sr->cache, lpm_match_rt->gw.s_addr);
                 struct sr_if *lpm_inf = sr_get_interface(sr, lpm_match_rt->interface);
                 uint8_t *icmp_t3_pkt = (uint8_t *)malloc(sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t));
                 construct_ether_hdr(ether_hdr, (sr_ethernet_hdr_t *)icmp_t3_pkt, lpm_inf);
@@ -74,14 +72,16 @@ void handle_arpreq(struct sr_arpreq * request, struct sr_instance *sr) {
                 /* construct icmp header */
                 sr_icmp_t3_hdr_t *new_icmp_t3_hdr = (sr_icmp_t3_hdr_t *)(icmp_t3_pkt + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
                 construct_icmp_hdr(3, 1, ip_hdr, new_icmp_t3_hdr);
+
+                struct sr_arpentry *arp_entry = sr_arpcache_lookup(&sr->cache, ip_hdr->ip_src);
                 if (arp_entry) {
                     printf("ARP cache hit\n");
                     /* if hit, change ethernet src/dst, send packet to next frame */
-                    sr_send_packet(sr, icmp_t3_pkt, sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t), lpm_inf->name);
+                    sr_send_packet(sr, icmp_t3_pkt, sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t), lpm_match_rt->interface);
                     free(icmp_t3_pkt);
                 } else {
                     /* no hit, cache it to the queue and send arp request(handle_arprequest)*/
-                    struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_src, icmp_t3_pkt, sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t), lpm_inf->name);
+                    struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_src, icmp_t3_pkt, sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t), lpm_match_rt->interface);
                     handle_arpreq(req, sr);
                 }
                 packets = packets->next;

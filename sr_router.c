@@ -134,7 +134,7 @@ void sr_handle_arp_packet(struct sr_instance* sr,
 
       /* allocate memory for arp reply */
       unsigned int reply_len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_arp_hdr_t);
-      uint8_t *arp_reply = malloc(reply_len);
+      uint8_t *arp_reply = (uint8_t *)malloc(reply_len);
 
       /* construct ethernet header */
       sr_ethernet_hdr_t *ether_arp_reply_hdr = (sr_ethernet_hdr_t *)arp_reply;
@@ -157,26 +157,24 @@ void sr_handle_arp_packet(struct sr_instance* sr,
       free(arp_reply);
       return;
     } else if (arp_op == arp_op_reply) {
+			struct sr_arpcache *cache = &(sr->cache);
       /* arp reply */
       printf("ARP reply\n");
       /* cache it and go through request queue */
-      struct sr_arpreq *req_queue = sr_arpcache_insert(&sr->cache, arp_hdr->ar_sha, arp_hdr->ar_sip);
+      struct sr_arpreq *req_queue = sr_arpcache_insert(cache, arp_hdr->ar_sha, arp_hdr->ar_sip);
       /* check outstanding packets existence*/
       if (req_queue) {
         struct sr_packet *out_packets = req_queue->packets;
         while (out_packets) {
           struct sr_if *out_inf = sr_get_interface(sr, out_packets->iface);
-          /* check if interface exist*/
-          if (out_inf) {
-            /* send outstanding packets*/
-            sr_ethernet_hdr_t *out_ether_hdr = (sr_ethernet_hdr_t *) out_packets->buf;
-            memcpy(out_ether_hdr->ether_dhost, arp_hdr->ar_sha, ETHER_ADDR_LEN);
-            memcpy(out_ether_hdr->ether_shost, out_inf->addr, ETHER_ADDR_LEN);
-            sr_send_packet(sr, out_packets->buf, out_packets->len, out_packets->iface);
-          }
+					/* send outstanding packets*/
+					sr_ethernet_hdr_t *out_ether_hdr = (sr_ethernet_hdr_t *) out_packets->buf;
+					memcpy(out_ether_hdr->ether_dhost, arp_hdr->ar_sha, ETHER_ADDR_LEN);
+					memcpy(out_ether_hdr->ether_shost, out_inf->addr, ETHER_ADDR_LEN);
+					sr_send_packet(sr, out_packets->buf, out_packets->len, out_inf->name);
           out_packets = out_packets->next;
         }
-        sr_arpreq_destroy(&sr->cache, req_queue);
+        sr_arpreq_destroy(cache, req_queue);
       }
       return;
     } else {
